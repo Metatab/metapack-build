@@ -7,9 +7,8 @@
 """
 import os
 
-from metapack import MetapackPackageUrl, MetapackUrl, open_package
+from metapack import MetapackPackageUrl, MetapackUrl
 from metapack.cli.core import prt, write_doc
-from metapack_build.cli.s3 import add_to_index
 from metatab import DEFAULT_METATAB_FILE
 from rowgenerators import parse_app_url
 
@@ -161,8 +160,6 @@ def create_s3_csv_package(m, dist_urls, fs_p):
     with open(csv_url.path, mode='rb') as f:
         m.bucket.write(f.read(), csv_url.target_file, m.acl)
 
-    add_to_index(open_package(access_url))
-
     if m.bucket.last_reason:
         # Ugly encapsulation-breaking hack.
         fs_p.files_processed += [[*m.bucket.last_reason, access_url, '/'.join(csv_url.path.split(os.sep)[-2:])]]
@@ -176,10 +173,12 @@ def create_s3_csv_package(m, dist_urls, fs_p):
 
     s3_path = csv_non_ver_url.path.split(os.sep)[-1]
 
-    access_url = m.bucket.access_url(s3_path)
+    nv_access_url = m.bucket.access_url(s3_path)
 
-    dist_urls.append(access_url)
+    dist_urls.append(nv_access_url)
 
     if m.bucket.last_reason:
         # Ugly encapsulation-breaking hack.
-        fs_p.files_processed += [[*m.bucket.last_reason, access_url, s3_path]]
+        fs_p.files_processed += [[*m.bucket.last_reason, nv_access_url, s3_path]]
+
+    return access_url

@@ -10,11 +10,11 @@ from os import getcwd, getenv
 from os.path import basename
 
 from botocore.exceptions import NoCredentialsError
-from metapack import MetapackDoc, MetapackPackageUrl
+from metapack import MetapackDoc, MetapackPackageUrl, MetapackUrl, open_package
 from metapack.cli.core import err, generate_packages, prt
 from metapack.constants import PACKAGE_PREFIX
 from metapack.index import SearchIndex, search_index_file
-from metapack.package import Downloader, MetapackUrl
+from metapack.package import Downloader
 from metapack.util import datetime_now
 from metapack_build.build import create_s3_csv_package, make_s3_package
 from metapack_build.package.s3 import S3Bucket
@@ -100,11 +100,13 @@ def run_s3(args):
 
         # Create the CSV package, with links into the filesystem package
         if fs_p:
-            create_s3_csv_package(m, dist_urls, fs_p)
+            access_url = create_s3_csv_package(m, dist_urls, fs_p)
         else:
             # If this happens, then no packages were created, because an FS package
             # is always built first
             prt("Not creating CSV package; no FS package was uploaded")
+
+        add_to_index(open_package(access_url))
 
     if dist_urls:
 
