@@ -2,19 +2,17 @@
 # MIT License, included in this distribution as LICENSE
 
 """ """
-import json
 from io import BytesIO
-from os.path import join, getsize
 from os import walk
+from os.path import getsize, join
+
 import boto3
 import unicodecsv as csv
-
-from rowgenerators import parse_app_url
+from metapack.util import write_csv
 from metatab import DEFAULT_METATAB_FILE
+from rowgenerators import parse_app_url
 
 from .core import PackageBuilder
-
-
 
 
 class S3PackageBuilder(PackageBuilder):
@@ -38,12 +36,12 @@ class S3PackageBuilder(PackageBuilder):
 
         self.files_processed = []
 
-
     @property
     def access_url(self):
         from metapack import MetapackPackageUrl
         return MetapackPackageUrl(self.bucket.access_url(DEFAULT_METATAB_FILE),
                                   downloader=self._source_ref.downloader)
+
     @property
     def private_access_url(self):
         from metapack import MetapackPackageUrl
@@ -65,7 +63,6 @@ class S3PackageBuilder(PackageBuilder):
     def exists(self, url=None):
         return self.bucket.exists(DEFAULT_METATAB_FILE)
 
-
     def save(self):
 
         self.check_is_ready()
@@ -79,8 +76,8 @@ class S3PackageBuilder(PackageBuilder):
                 source = join(root, f)
                 rel = source.replace(self.source_dir, '').strip('/')
 
-                with open(source,'rb') as f:
-                    self.write_to_s3(rel,f)
+                with open(source, 'rb') as f:
+                    self.write_to_s3(rel, f)
 
         # Re-write the URLS for the datafiles
         for r in self.datafiles:
@@ -95,7 +92,6 @@ class S3PackageBuilder(PackageBuilder):
             url = parse_app_url(r.url)
             if url.proto == 'file':
                 r.url = self.bucket.access_url(url.path)
-
 
         return self.access_url
 
@@ -127,7 +123,7 @@ class S3PackageBuilder(PackageBuilder):
 
         old_ref = self._doc._ref
         self._doc._ref = self.access_url.join('metatab.csv')
-        self.write_to_s3('index.html',  self._doc.html)
+        self.write_to_s3('index.html', self._doc.html)
         self._doc._ref = old_ref
 
     def _load_resource(self, r, abs_path=False):
@@ -146,8 +142,6 @@ class S3PackageBuilder(PackageBuilder):
         self.write_to_s3(r.url, data)
 
     def _load_documentation(self, term, contents, file_name):
-
-        title = term['title'].value
 
         term['url'].value = 'docs/' + file_name
 
@@ -185,10 +179,9 @@ class S3Bucket(object):
         # Reason that the last written file was either written or skipped
         self.last_reason = None
 
-        self.error = False # Flag for error condition
+        self.error = False  # Flag for error condition
 
         self._acl = acl
-
 
         self._bucket = self._s3.Bucket(self.bucket_name)
 
@@ -218,8 +211,6 @@ class S3Bucket(object):
 
         key = join(self.prefix, *paths).strip('/')
 
-        s3 = boto3.client('s3')
-
         return "s3://{}/{}".format(self.bucket_name, key)
 
     def public_access_url(self, *paths):
@@ -231,21 +222,17 @@ class S3Bucket(object):
         url = s3.meta.endpoint_url.replace('https', 'http')
 
         if self.dns_bucket:
-            url = url.replace('/s3.amazonaws.com','') # Assume bucket has name because it is setup as a CNAME
+            url = url.replace('/s3.amazonaws.com', '')  # Assume bucket has name because it is setup as a CNAME
 
         return '{}/{}/{}'.format(url, self.bucket_name, key)
 
     def signed_access_url(self, *paths):
-
-        import pdb;
-        pdb.set_trace()
 
         key = join(self.prefix, *paths).strip('/')
 
         s3 = boto3.client('s3')
 
         return s3.generate_presigned_url('get_object', Params={'Bucket': self.bucket_name, 'Key': key})
-
 
     def exists(self, *paths):
         import botocore
@@ -284,17 +271,16 @@ class S3Bucket(object):
     def write(self, body, path, acl=None, force=False):
         from botocore.exceptions import ClientError
         import mimetypes
-        from metapack.cli.core import err, prt
         import hashlib
 
         acl = acl if acl is not None else self._acl
 
         key = join(self.prefix, path).strip('/')
 
-        self.last_reason = ('wrote','Normal write')
+        self.last_reason = ('wrote', 'Normal write')
 
         try:
-            file_size = getsize(body.name) # Maybe it's an open file
+            file_size = getsize(body.name)  # Maybe it's an open file
         except AttributeError:
             # Nope, hope it is the file contents
             file_size = len(body)
@@ -302,11 +288,11 @@ class S3Bucket(object):
         try:
             o = self._bucket.Object(key)
 
-            md5 = o.e_tag[1:-1] # Rumor is this only works for single-part uplaoaded files
+            md5 = o.e_tag[1:-1]  # Rumor is this only works for single-part uplaoaded files
 
             if o.content_length == file_size:
                 if force:
-                    self.last_reason =('wrote',"File already in bucket, but forcing overwrite")
+                    self.last_reason = ('wrote', "File already in bucket, but forcing overwrite")
                 else:
 
                     try:
@@ -314,26 +300,26 @@ class S3Bucket(object):
                     except TypeError:
                         local_md5 = md5
 
-                    if(local_md5 != md5):
+                    if (local_md5 != md5):
 
-                        self.last_reason = ('wrote',"File already in bucket, but md5 sums differ")
+                        self.last_reason = ('wrote', "File already in bucket, but md5 sums differ")
                     else:
-                        self.last_reason = ('skip',"File already in bucket; skipping")
+                        self.last_reason = ('skip', "File already in bucket; skipping")
 
                         return self.access_url(path)
             else:
-                self.last_reason = ('wrote',"File already in bucket, but length is different; re-writting")
+                self.last_reason = ('wrote', "File already in bucket, but length is different; re-writting")
 
         except ClientError as e:
             if int(e.response['Error']['Code']) in (403, 405):
-                self.last_reason = ('error',"S3 Access failed for '{}:{}': {}\nNOTE: With Docker, this error is often "
-                                    "the result of container clock drift. Check your container clock. "
-                    .format(self.bucket_name, key, e))
+                self.last_reason = ('error', "S3 Access failed for '{}:{}': {}\nNOTE: With Docker, this error is often "
+                                             "the result of container clock drift. Check your container clock. "
+                                    .format(self.bucket_name, key, e))
                 self.error = True
                 return
 
             elif int(e.response['Error']['Code']) != 404:
-                self.last_reason = ('error',"S3 Access failed for '{}:{}': {}".format(self.bucket_name, key, e))
+                self.last_reason = ('error', "S3 Access failed for '{}:{}': {}".format(self.bucket_name, key, e))
                 self.error = True
                 return
 
@@ -345,7 +331,7 @@ class S3Bucket(object):
                                     ACL=acl,
                                     ContentType=ct if ct else 'binary/octet-stream')
         except Exception as e:
-            self.last_reason = ('error',"Failed to write '{}' to '{}': {}".format(key, self.bucket_name, e))
+            self.last_reason = ('error', "Failed to write '{}' to '{}': {}".format(key, self.bucket_name, e))
             self.error = True
 
         return self.access_url(path)

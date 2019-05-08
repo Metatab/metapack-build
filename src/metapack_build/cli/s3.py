@@ -6,18 +6,19 @@ CLI program for storing pacakges in CKAN
 """
 
 import os
-from botocore.exceptions import NoCredentialsError
-from metapack import MetapackDoc, MetapackUrl
-from metapack import MetapackPackageUrl
-from metapack.cli.core import prt, err, generate_packages, write_doc
-from metapack.constants import PACKAGE_PREFIX
-from metapack.index import SearchIndex, search_index_file
-from metapack.package import *
-from metapack_build.package.s3 import S3Bucket
-from metapack.util import datetime_now
-from metatab import DEFAULT_METATAB_FILE
 from os import getcwd, getenv
 from os.path import basename
+
+from botocore.exceptions import NoCredentialsError
+from metapack import MetapackDoc, MetapackPackageUrl
+from metapack.cli.core import err, generate_packages, prt
+from metapack.constants import PACKAGE_PREFIX
+from metapack.index import SearchIndex, search_index_file
+from metapack.package import Downloader, MetapackUrl
+from metapack.util import datetime_now
+from metapack_build.build import create_s3_csv_package, make_s3_package
+from metapack_build.package.s3 import S3Bucket
+from metatab import DEFAULT_METATAB_FILE
 from rowgenerators import parse_app_url
 from rowgenerators.util import fs_join as join
 from tabulate import tabulate
@@ -61,11 +62,10 @@ class MetapackCliMemo(object):
 
         self.acl = 'private' if access_value == 'private' else 'public-read'
 
-        self.bucket = S3Bucket(self.s3_url, acl=self.acl , profile=self.args.profile) if self.s3_url else None
+        self.bucket = S3Bucket(self.s3_url, acl=self.acl, profile=self.args.profile) if self.s3_url else None
 
 
 def s3(subparsers):
-
     parser = subparsers.add_parser(
         's3',
         help='Create packages and store them in s3 buckets',
@@ -78,7 +78,7 @@ def s3(subparsers):
     parser.add_argument('-s', '--s3', help="URL to S3 where packages will be stored", required=False)
 
     parser.add_argument('-F', '--force', default=False, action='store_true',
-                       help='Force write for all files')
+                        help='Force write for all files')
 
     parser.add_argument('-C', '--credentials', help="Show S3 Credentials and exit. "
                                                     "Eval this string to setup credentials in other shells.",
@@ -88,7 +88,6 @@ def s3(subparsers):
 
 
 def run_s3(args):
-
     m = MetapackCliMemo(args)
 
     if m.args.credentials:
@@ -109,12 +108,12 @@ def run_s3(args):
 
     if dist_urls:
 
-        rows = [ [path,url, reason] for  what, reason, url, path in fs_p.files_processed if what != 'skip']
+        rows = [[path, url, reason] for what, reason, url, path in fs_p.files_processed if what != 'skip']
         if rows:
             prt("\nWrote these files:")
             prt(tabulate(rows, headers='path url reason'.split()))
 
-        rows = [[path,url, reason] for  what, reason, url, path in fs_p.files_processed if what == 'skip']
+        rows = [[path, url, reason] for what, reason, url, path in fs_p.files_processed if what == 'skip']
         if rows:
             prt("\nSkipped these files:")
             prt(tabulate(rows, headers='path url reason'.split()))
@@ -132,6 +131,7 @@ def run_s3(args):
 
     clear_cache(m, fs_p.files_processed)
 
+
 def clear_cache(m, files_processed):
     """Remove any files we may have uploaded from the cache. """
 
@@ -141,43 +141,13 @@ def clear_cache(m, files_processed):
         if m.cache.exists(cp):
             m.cache.remove(cp)
 
-def add_to_index(p):
 
+def add_to_index(p):
     idx = SearchIndex(search_index_file())
 
     idx.add_package(p, format='web')
 
     idx.write()
-
-def set_distributions(doc, dist_urls):
-
-    for t in doc.find('Root.Distribution'):
-        doc.remove_term(t)
-
-    for au in dist_urls:
-        doc['Root'].new_term('Root.Distribution', au)
-
-    path = write_doc(doc)()
-
-
-def make_s3_package(file, package_root, cache, env, skip_if_exists, acl='public-read'):
-    from metapack import MetapackUrl
-    from metapack.package import S3PackageBuilder
-
-    assert package_root
-
-    p = S3PackageBuilder(file, package_root, callback=prt, env=env, acl=acl)
-
-    if not p.exists() or not skip_if_exists:
-        url = p.save()
-        prt("Packaged saved to: {}".format(url))
-        created = True
-    elif p.exists():
-        prt("S3 Filesystem Package already exists")
-        created = False
-        url = p.access_url
-
-    return p, MetapackUrl(url, downloader=file.downloader), created
 
 
 def upload_packages(m):
@@ -227,65 +197,9 @@ def upload_packages(m):
 
                 dist_urls.append(au)
 
-    fs_p.files_processed += files_processed # Ugly encapsulating-breaking hack.
+    fs_p.files_processed += files_processed  # Ugly encapsulating-breaking hack.
 
     return dist_urls, fs_p
-
-def create_s3_csv_package(m, dist_urls, fs_p):
-
-    u = MetapackUrl(fs_p.access_url, downloader=m.downloader)
-
-    resource_root = u.dirname().as_type(MetapackPackageUrl)
-
-    p = CsvPackageBuilder(u, m.package_root, resource_root)
-
-    access_url = m.bucket.access_url(p.cache_path)
-    dist_urls.append(access_url)
-
-    for au in dist_urls:
-        if not p.doc.find_first('Root.Distribution', str(au)):
-            p.doc['Root'].new_term('Root.Distribution', au)
-
-    # Re-write the URLS for the datafiles
-    for r in p.datafiles:
-        r.url = fs_p.bucket.access_url(r.url)
-
-    # Rewrite Documentation urls:
-    for r in p.doc.find(['Root.Documentation', 'Root.Image']):
-
-        url = parse_app_url(r.url)
-        if url.proto == 'file':
-            r.url = fs_p.bucket.access_url(url.path)
-
-    csv_url = p.save()
-
-    with open(csv_url.path, mode='rb') as f:
-        m.bucket.write(f.read(), csv_url.target_file, m.acl)
-
-
-    add_to_index(open_package(access_url))
-
-    if m.bucket.last_reason:
-        # Ugly encapsulation-breaking hack.
-        fs_p.files_processed += [ [*m.bucket.last_reason, access_url, '/'.join(csv_url.path.split(os.sep)[-2:])] ]
-
-    # Create an alternative url with no version number, so users can get the
-    # most recent version
-    csv_non_ver_url = csv_url.join_dir("{}.{}".format(m.doc.nonver_name, csv_url.target_format))
-
-    with open(csv_url.path, mode='rb') as f:
-        m.bucket.write(f.read(), csv_non_ver_url.target_file, m.acl)
-
-    s3_path = csv_non_ver_url.path.split(os.sep)[-1]
-
-    access_url = m.bucket.access_url(s3_path)
-
-    dist_urls.append(access_url)
-
-    if m.bucket.last_reason:
-        # Ugly encapsulation-breaking hack.
-        fs_p.files_processed += [ [*m.bucket.last_reason, access_url, s3_path] ]
-
 
 
 def show_credentials(profile):
@@ -301,5 +215,3 @@ def show_credentials(profile):
     prt("export AWS_ACCESS_KEY_ID={} ".format(session.get_credentials().access_key))
     prt("export AWS_SECRET_ACCESS_KEY={}".format(session.get_credentials().secret_key))
     prt("# Run {} to configure credentials in a shell".format(cred_line))
-
-

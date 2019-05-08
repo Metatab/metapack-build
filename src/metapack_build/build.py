@@ -5,9 +5,13 @@
 
 
 """
+import os
 
-from metapack.cli.core import prt
+from metapack import MetapackPackageUrl, MetapackUrl, open_package
+from metapack.cli.core import prt, write_doc
+from metapack_build.cli.s3 import add_to_index
 from metatab import DEFAULT_METATAB_FILE
+from rowgenerators import parse_app_url
 
 from .package import (CsvPackageBuilder, ExcelPackageBuilder,
                       FileSystemPackageBuilder, ZipPackageBuilder)
@@ -93,3 +97,89 @@ def make_csv_package(file, package_root, cache, env, force, nv_name=None, nv_lin
                        package_root, force, nv_name,
                        lambda p: p.package_path.path,
                        lambda: p.create_nv_link() if nv_link else None)
+
+
+def set_distributions(doc, dist_urls):
+    for t in doc.find('Root.Distribution'):
+        doc.remove_term(t)
+
+    for au in dist_urls:
+        doc['Root'].new_term('Root.Distribution', au)
+
+    write_doc(doc)()
+
+
+def make_s3_package(file, package_root, cache, env, skip_if_exists, acl='public-read'):
+    from metapack import MetapackUrl
+    from metapack_build.package import S3PackageBuilder
+
+    assert package_root
+
+    p = S3PackageBuilder(file, package_root, callback=prt, env=env, acl=acl)
+
+    if not p.exists() or not skip_if_exists:
+        url = p.save()
+        prt("Packaged saved to: {}".format(url))
+        created = True
+    elif p.exists():
+        prt("S3 Filesystem Package already exists")
+        created = False
+        url = p.access_url
+
+    return p, MetapackUrl(url, downloader=file.downloader), created
+
+
+def create_s3_csv_package(m, dist_urls, fs_p):
+    from metapack_build.package.csv import CsvPackageBuilder
+
+    u = MetapackUrl(fs_p.access_url, downloader=m.downloader)
+
+    resource_root = u.dirname().as_type(MetapackPackageUrl)
+
+    p = CsvPackageBuilder(u, m.package_root, resource_root)
+
+    access_url = m.bucket.access_url(p.cache_path)
+    dist_urls.append(access_url)
+
+    for au in dist_urls:
+        if not p.doc.find_first('Root.Distribution', str(au)):
+            p.doc['Root'].new_term('Root.Distribution', au)
+
+    # Re-write the URLS for the datafiles
+    for r in p.datafiles:
+        r.url = fs_p.bucket.access_url(r.url)
+
+    # Rewrite Documentation urls:
+    for r in p.doc.find(['Root.Documentation', 'Root.Image']):
+
+        url = parse_app_url(r.url)
+        if url.proto == 'file':
+            r.url = fs_p.bucket.access_url(url.path)
+
+    csv_url = p.save()
+
+    with open(csv_url.path, mode='rb') as f:
+        m.bucket.write(f.read(), csv_url.target_file, m.acl)
+
+    add_to_index(open_package(access_url))
+
+    if m.bucket.last_reason:
+        # Ugly encapsulation-breaking hack.
+        fs_p.files_processed += [[*m.bucket.last_reason, access_url, '/'.join(csv_url.path.split(os.sep)[-2:])]]
+
+    # Create an alternative url with no version number, so users can get the
+    # most recent version
+    csv_non_ver_url = csv_url.join_dir("{}.{}".format(m.doc.nonver_name, csv_url.target_format))
+
+    with open(csv_url.path, mode='rb') as f:
+        m.bucket.write(f.read(), csv_non_ver_url.target_file, m.acl)
+
+    s3_path = csv_non_ver_url.path.split(os.sep)[-1]
+
+    access_url = m.bucket.access_url(s3_path)
+
+    dist_urls.append(access_url)
+
+    if m.bucket.last_reason:
+        # Ugly encapsulation-breaking hack.
+        fs_p.files_processed += [[*m.bucket.last_reason, access_url, s3_path]]
