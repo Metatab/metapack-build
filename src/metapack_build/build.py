@@ -6,10 +6,12 @@
 
 """
 
-
+from metapack.cli.core import prt
 from metatab import DEFAULT_METATAB_FILE
-from .package import ExcelPackageBuilder, ZipPackageBuilder, FileSystemPackageBuilder, CsvPackageBuilder
-from metapack.cli.core import  prt
+
+from .package import (CsvPackageBuilder, ExcelPackageBuilder,
+                      FileSystemPackageBuilder, ZipPackageBuilder)
+
 
 def _exec_build(p, package_root, force, nv_name, extant_url_f, post_f):
     from metapack import MetapackUrl
@@ -47,9 +49,7 @@ def _exec_build(p, package_root, force, nv_name, extant_url_f, post_f):
     return p, MetapackUrl(url, downloader=package_root.downloader), created
 
 
-
 def make_excel_package(file, package_root, cache, env, force, nv_name=None, nv_link=False):
-
     assert package_root
 
     p = ExcelPackageBuilder(file, package_root, callback=prt, env=env)
@@ -61,7 +61,6 @@ def make_excel_package(file, package_root, cache, env, force, nv_name=None, nv_l
 
 
 def make_zip_package(file, package_root, cache, env, force, nv_name=None, nv_link=False):
-
     assert package_root
 
     p = ZipPackageBuilder(file, package_root, callback=prt, env=env)
@@ -75,7 +74,6 @@ def make_zip_package(file, package_root, cache, env, force, nv_name=None, nv_lin
 def make_filesystem_package(file, package_root, cache, env, force, nv_name=None, nv_link=False, reuse_resources=False):
     from os.path import join
 
-
     assert package_root
 
     p = FileSystemPackageBuilder(file, package_root, callback=prt, env=env, reuse_resources=reuse_resources)
@@ -87,7 +85,6 @@ def make_filesystem_package(file, package_root, cache, env, force, nv_name=None,
 
 
 def make_csv_package(file, package_root, cache, env, force, nv_name=None, nv_link=False):
-
     assert package_root
 
     p = CsvPackageBuilder(file, package_root, callback=prt, env=env)
