@@ -5,9 +5,9 @@
 Metapack CLI program for creating new metapack package directories
 """
 
-from metapack.package import *
-
-from metapack.cli.core import err, prt, warn, write_doc, MetapackCliMemo as _MetapackCliMemo
+from metapack.cli.core import MetapackCliMemo as _MetapackCliMemo
+from metapack.cli.core import err, warn, write_doc
+from metapack.package import Downloader
 
 downloader = Downloader.get_instance()
 
@@ -42,18 +42,25 @@ def edit_args(subparsers):
 
     parser.set_defaults(run_command=edit_cmd)
 
+    parser.add_argument('-e', '--echo', help="Print the file after editing", action='store_true', required=False)
+
     cp_add = cmds.add_parser('add', help='Add a term')
     cp_add.set_defaults(edit_command=add_cmd)
     cp_add.add_argument('term', nargs=1,
-                        help="A fully qualified term. Prefix with a third component to set the section ( 'Resources.Root.Datafile' ) ")
+                        help="A fully qualified term. Prefix with a third component to set the section "
+                             "( 'Resources.Root.Datafile' ) ")
     cp_add.add_argument('value', nargs=1, help="The term value, for add and edit ")
+    cp_add.add_argument('-a', '--arg', help="Add an additional argument: 'Name=value' ",
+                        action='append', required=False)
+
     cp_add.add_argument('metatabfile', nargs='?',
                         help="Path or URL to a metatab file. If not provided, defaults to 'metadata.csv' ")
 
     cp_edit = cmds.add_parser('change', help='Edit a term')
     cp_edit.set_defaults(edit_command=change_cmd)
     cp_edit.add_argument('term', nargs=1,
-                         help="A fully qualified term. Prefix with a third component to set the section ( 'Resources.Root.Datafile' ) ")
+                         help="A fully qualified term. Prefix with a third component to set the section"
+                              " ( 'Resources.Root.Datafile' ) ")
     cp_edit.add_argument('value', nargs=1, help="The term value, for add and edit ")
     cp_edit.add_argument('metatabfile', nargs='?',
                          help="Path or URL to a metatab file. If not provided, defaults to 'metadata.csv' ")
@@ -61,9 +68,11 @@ def edit_args(subparsers):
     cp_delete = cmds.add_parser('delete', help='Delete a term')
     cp_delete.set_defaults(edit_command=delete_cmd)
     cp_delete.add_argument('term', nargs=1,
-                           help="A fully qualified term. Prefix with a third component to set the section ( 'Resources.Root.Datafile' ) ")
+                           help="A fully qualified term. Prefix with a third component to set the section "
+                                "( 'Resources.Root.Datafile' ) ")
     cp_delete.add_argument('metatabfile', nargs='?',
                            help="Path or URL to a metatab file. If not provided, defaults to 'metadata.csv' ")
+
 
 def edit_cmd(args):
     m = MetapackCliMemo(args, downloader)
@@ -71,28 +80,32 @@ def edit_cmd(args):
 
 
 def add_cmd(m):
-    print('ADD', m.term, m.value, m.doc.ref)
-
     doc = m.doc
 
-    term = doc[m.section].new_term(m.term, m.value)
+    args = dict(a.split('=', 1) for a in m.args.arg)
 
-    print(doc.as_csv())
+    doc[m.section].new_term(m.term, m.value, **args)
+
+    if m.args.echo:
+        print(doc.as_csv())
+
     write_doc(doc)
 
-def change_cmd(m):
 
+def change_cmd(m):
     doc = m.doc
 
     t = doc.find_first(m.term, section=m.section)
 
     t.value = m.value
 
-    print(doc.as_csv())
+    if m.args.echo:
+        print(doc.as_csv())
+
     write_doc(doc)
 
-def delete_cmd(m):
 
+def delete_cmd(m):
     doc = m.doc
 
     terms = doc.find(m.term, section=m.section)
@@ -108,6 +121,7 @@ def delete_cmd(m):
     if terms:
         warn("Delete failed")
 
-    print(doc.as_csv())
-    write_doc(doc)
+    if m.args.echo:
+        print(doc.as_csv())
 
+    write_doc(doc)

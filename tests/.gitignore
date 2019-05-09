@@ -1,6 +1,7 @@
 .ipynb_checkpoints
 _packages
 _build
+_test
 **/*-errors.ipynb
 **/*-executed.ipynb
 **/.DS_Store
