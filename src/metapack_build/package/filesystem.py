@@ -3,26 +3,24 @@
 
 """ """
 
-
 import json
 import shutil
 from genericpath import exists, getmtime
-from os import getcwd, makedirs, remove, getenv
-from os.path import join, dirname, isdir
-
-from nbconvert.writers import FilesWriter
-from rowgenerators import parse_app_url
-from metatab.datapackage import convert_to_datapackage
+from metapack.appurl import MetapackUrl
+from metapack.util import datetime_now, ensure_dir, slugify
 from metatab import DEFAULT_METATAB_FILE
+from metatab.datapackage import convert_to_datapackage
+from nbconvert.writers import FilesWriter
+from os import makedirs, remove
+from os.path import dirname, join
+from rowgenerators import parse_app_url
+
 from .core import PackageBuilder
-from metapack.util import ensure_dir, write_csv, slugify, datetime_now
-from metapack.appurl import MetapackUrl, SearchUrl
-from metapack.util import slugify
+
 
 def count_decl(doc):
     decls = doc.find('Root.Declare')
-    assert len(doc.terms) == 0 or len(decls) == 1, (len(decls), len(doc.terms) )
-
+    assert len(doc.terms) == 0 or len(decls) == 1, (len(decls), len(doc.terms))
 
 
 class FileSystemPackageBuilder(PackageBuilder):
@@ -31,9 +29,9 @@ class FileSystemPackageBuilder(PackageBuilder):
     type_code = 'fs'
     type_suffix = ''
 
-    def __init__(self, source_ref, package_root, callback=None, env=None, reuse_resources = False):
+    def __init__(self, source_ref, package_root, callback=None, env=None, reuse_resources=False):
 
-        super().__init__(source_ref, package_root,  callback, env)
+        super().__init__(source_ref, package_root, callback, env)
 
         if not self.package_root.isdir():
             self.package_root.ensure_dir()
@@ -43,7 +41,6 @@ class FileSystemPackageBuilder(PackageBuilder):
         self.package_path, self.cache_path = self.make_package_path(self.package_root, self.package_name)
 
         self.doc_file = self.package_path.join(DEFAULT_METATAB_FILE)
-
 
     @classmethod
     def make_package_path(cls, package_root, package_name):
@@ -70,7 +67,6 @@ class FileSystemPackageBuilder(PackageBuilder):
 
     def package_build_time(self):
         from genericpath import getmtime
-
 
         try:
             path = self.doc_file.path
@@ -125,7 +121,7 @@ class FileSystemPackageBuilder(PackageBuilder):
 
         doc_file = self._write_doc()
 
-        self._write_html() # Why does this happen after _write_doc?
+        self._write_html()  # Why does this happen after _write_doc?
 
         return doc_file
 
@@ -144,7 +140,6 @@ class FileSystemPackageBuilder(PackageBuilder):
     def _write_html(self):
 
         with open(join(self.package_path.path, 'index.html'), 'w', encoding="utf-8") as f:
-
             f.write(self._doc.html)
 
     def _load_resource(self, source_r, abs_path=False):
@@ -153,7 +148,6 @@ class FileSystemPackageBuilder(PackageBuilder):
 
         from itertools import islice
         from metapack.exc import MetapackError
-        from os.path import splitext
 
         # Refetch the resource ... IIRC b/c the source_r resource may actually be from
         # a different package. So r is the resource we want to possibly modify in this package,
@@ -179,7 +173,7 @@ class FileSystemPackageBuilder(PackageBuilder):
 
             r = new_r
 
-        r.url = 'data/' + r.name + '.csv' # Re-writing the URL for the resource.
+        r.url = 'data/' + r.name + '.csv'  # Re-writing the URL for the resource.
 
         path = join(self.package_path.path, r.url)
 
@@ -204,12 +198,12 @@ class FileSystemPackageBuilder(PackageBuilder):
             if source_r.errors:
                 for col_name, errors in source_r.errors.items():
                     self.warn("ERRORS for column '{}' ".format(col_name))
-                    for e in islice(errors,5):
+                    for e in islice(errors, 5):
                         self.warn('   {}'.format(e))
                     if len(errors) > 5:
-                        self.warn("... and {} more ".format(len(errors)-5))
+                        self.warn("... and {} more ".format(len(errors) - 5))
         except AttributeError:
-            pass # Maybe generator does not track errors
+            pass  # Maybe generator does not track errors
 
         if source_r.errors:
             self.err("Resource processing generated conversion errors")
@@ -229,7 +223,7 @@ class FileSystemPackageBuilder(PackageBuilder):
 
     def _load_documentation_files(self):
 
-        from metapack.jupyter.exporters import DocumentationExporter
+        from metapack_jupyter.exporters import DocumentationExporter
 
         notebook_docs = []
 
@@ -248,7 +242,7 @@ class FileSystemPackageBuilder(PackageBuilder):
         super()._load_documentation_files()
 
         fw = FilesWriter()
-        fw.build_directory = join(self.package_path.path,'docs')
+        fw.build_directory = join(self.package_path.path, 'docs')
 
         # Now, generate the notebook documents directly into the filesystem package
         for term in notebook_docs:
@@ -257,17 +251,16 @@ class FileSystemPackageBuilder(PackageBuilder):
 
             u = parse_app_url(term.value)
 
-            nb_path = join(self.source_dir, u.path) # Only works if the path is relative.
+            nb_path = join(self.source_dir, u.path)  # Only works if the path is relative.
 
             try:
                 output, resources = de.from_filename(nb_path)
-                fw.write(output, resources, notebook_name=de.base_name+'_full') # Write notebook html with inputs
+                fw.write(output, resources, notebook_name=de.base_name + '_full')  # Write notebook html with inputs
 
                 de.update_metatab(self.doc, resources)
             except Exception as e:
                 from metapack.cli.core import warn
                 warn("Failed to convert document for {}: {}".format(term.name, e))
-
 
     def _load_documentation(self, term, contents, file_name):
         """Load a single documentation entry"""
@@ -278,7 +271,7 @@ class FileSystemPackageBuilder(PackageBuilder):
             self.warn("Documentation has no title, skipping: '{}' ".format(term.value))
             return
 
-        if term.term_is('Root.Readme'): # This term type has inline content, not a url
+        if term.term_is('Root.Readme'):  # This term type has inline content, not a url
             package_sub_dir = 'docs'
         else:
             try:
@@ -293,8 +286,7 @@ class FileSystemPackageBuilder(PackageBuilder):
             else:
                 package_sub_dir = 'docs'
 
-
-        path = join(self.package_path.path,  package_sub_dir, file_name)
+        path = join(self.package_path.path, package_sub_dir, file_name)
 
         self.prt("Loading documentation for '{}', '{}' to '{}'  ".format(title, file_name, path))
 
@@ -306,7 +298,7 @@ class FileSystemPackageBuilder(PackageBuilder):
         with open(path, 'wb') as f:
             f.write(contents)
 
-    def _load_file(self,  filename, contents):
+    def _load_file(self, filename, contents):
 
         if "__pycache__" in filename:
             return

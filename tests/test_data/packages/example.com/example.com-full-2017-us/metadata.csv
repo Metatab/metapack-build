@@ -1,23 +1,23 @@
-Declare,metatab-latest
-Title,A Metatab Example Data Package
-Description,"An example data package, from the Metatab tutorial at https://github.com/CivicKnowledge/metatab-py/blob/master/README.rst"
-Identifier,96cd659b-94ad-46ae-9c18-4018caa64355
-Name,example.com-full-2017-us-1
-Dataset,full
-Origin,example.com
-Time,2017
-Space,US
-Version,1
-Modified,2017-09-20T16:00:18
-Issued,2017-09-20T16:43:33
-Giturl,https://github.com/CivicKnowledge/metapack.git
-S3,library.metatab.org
-Spatialgrain,
-Distribution,http://library.metatab.org/example.com-full-2017-us-1/metadata.csv
-Distribution,http://library.metatab.org/example.com-full-2017-us-1.zip
-Distribution,http://library.metatab.org/example.com-full-2017-us-1.xlsx
-Distribution,http://library.metatab.org/example.com-full-2017-us-1.csv
-
+Declare,metatab-latest,,,,,,,,,
+Title,A Metatab Example Data Package,,,,,,,,,
+Description,"An example data package, from the Metatab tutorial at https://github.com/CivicKnowledge/metatab-py/blob/master/README.rst",,,,,,,,,
+Identifier,96cd659b-94ad-46ae-9c18-4018caa64355,,,,,,,,,
+Name,example.com-full-2017-us-1,,,,,,,,,
+Dataset,full,,,,,,,,,
+Origin,example.com,,,,,,,,,
+Time,2017,,,,,,,,,
+Space,US,,,,,,,,,
+Version,1,,,,,,,,,
+Modified,2017-09-20T16:00:18,,,,,,,,,
+Issued,2017-09-20T16:43:33,,,,,,,,,
+Giturl,https://github.com/CivicKnowledge/metapack.git,,,,,,,,,
+S3,library.metatab.org,,,,,,,,,
+Spatialgrain,,,,,,,,,,
+Distribution,http://library.metatab.org/example.com-full-2017-us-1/metadata.csv,,,,,,,,,
+Distribution,http://library.metatab.org/example.com-full-2017-us-1.zip,,,,,,,,,
+Distribution,http://library.metatab.org/example.com-full-2017-us-1.xlsx,,,,,,,,,
+Distribution,http://library.metatab.org/example.com-full-2017-us-1.csv,,,,,,,,,
+,,,,,,,,,,
 Section,Resources,Name,schema,StartLine,HeaderLines,Description,nrows,,,
 Datafile,http://public.source.civicknowledge.com/example.com/sources/test_data.zip#renter_cost.csv,renter_cost,,5,"3,4","Portion of income spent on rent, extracted from the ACS",12000,,,
 Datafile,http://public.source.civicknowledge.com/example.com/sources/test_data.zip#simple-example-altnames.csv,simple-example-altnames,,1,0,"Random UUIDs, integers and numbers",10001,,,
@@ -32,28 +32,28 @@ Datafile,metapack+http://library.metatab.org/example.com-simple_example-2017-us-
 Datafile,metapack+http://library.metatab.org/example.com-simple_example-2017-us-2.csv#random-names,random-names-csv,random-names,,,Names and a random number,101,,,
 Datafile,metapack+http://library.metatab.org/example.com-simple_example-2017-us-2.xlsx#random-names,random-names-xlsx,random-names,,,Names and a random number,101,,,
 Datafile,metapack+http://library.metatab.org/example.com-simple_example-2017-us-2.zip#random-names,random-names-zip,random-names,,,Names and a random number,101,,,
-Datafile,shape+http://s3.amazonaws.com/public.source.civicknowledge.com/sangis.org/Subregional_Areas_2010.zip,sra,,,,"San Diego County Sub-Regional Areas boundaries, from SANGIS",,,,
+Datafile,shape+http://ds.civicknowledge.org/sangis.org/Subregional_Areas_2010.zip,sra,,,,"San Diego County Sub-Regional Areas boundaries, from SANGIS",,,,
 Datafile,program+file:scripts/rowgen.py,rowgen,,,,,,,,
 Datafile,fixed+http://public.source.civicknowledge.com/example.com/sources/simple-example.txt,simple-fixed,,,,,,,,
-
+,,,,,,,,,,
 Section,References,Name,Title,Description,StartLine,HeaderLines,Encoding,,,
 Reference,censusreporter:B09020/140/05000US06073,B09020,,Relationship by Household Type (Including Living Alone) for Population 65 Years and Over,,,,,,
 Reference,censusreporter:B25007/140/05000US06073,B25007,,Tenure by Age of Householder,,,,,,
 Reference,censusreporter:B19049/140/05000US06073,B19049,,Median Household Income by Age of Householder,,,,,,
 Reference,censusreporter:B19049/050/05000US06073,B19049_county,,Median Household Income by Age of Householder,,,,,,
-
+,,,,,,,,,,
 Section,Documentation,Title,Description,,,,,,,
 Homepage,http://metatab.org,Metatab Home Page,Main Metatab home page,,,,,,,
 Documentation,https://github.com/CivicKnowledge/metatab-py/blob/master/README.rst,Metatab Python Package README,The README in the Metatab Githup repo contains the tutorial for generating this package.,,,,,,,
-
+,,,,,,,,,,
 Section,Contacts,email,,,,,,,,
 Origin,example.com,,,,,,,,,
 Creator,Eric Busboom,eric@civicknowledge. com,,,,,,,,
 Wrangler,Eric Busboom,eric@civicknowledge. com,,,,,,,,
-
+,,,,,,,,,,
 Section,Notes,,,,,,,,,
 Note,,,,,,,,,,
-
+,,,,,,,,,,
 Section,Schema,DataType,AltName,Description,Width,,,,,
 Table,random-names,,,,,,,,,
 Table.Column,Name,text,name,A random name,,,,,,
@@ -121,33 +121,33 @@ Table.Column,row,integer,,,,,,,,
 Table.Column,type,text,,,,,,,,
 Table.Column,k,text,,,,,,,,
 Table.Column,v,text,,,,,,,,
-
+,,,,,,,,,,
 Section,Bibliography,Name,Type,Author,Title,PublicationYear,Publisher,Version,AccessDate,Location
 Citation,ipums,,dataset,Steven Ruggles; Katie Genadek; Ronald Goeken; Josiah Grover; Matthew Sobek,Integrated Public Use Microdata Series,,University of Minnesota,7,20170718,
-Citation.Year,2017
-Citation.Url,https://usa.ipums.org/usa/index.shtml
-Citation.Doi,https://doi.org/10.18128/D010.V7.0
+Citation.Year,2017,,,,,,,,,
+Citation.Url,https://usa.ipums.org/usa/index.shtml,,,,,,,,,
+Citation.Doi,https://doi.org/10.18128/D010.V7.0,,,,,,,,,
 Citation,bordley,,article,Robert F. Bordley; James B. McDonald; Anand Mantrala,"Something New, Something Old: Parametric Models for the Size of Distribution of Income",,,,,
-Citation.Year,1997
-Citation.Month,June
-Citation.Journal,Journal of Income Distribution
-Citation.Volume,6
-Citation.Number,1
-Citation.Pages,5-5
-Citation.Url,https://ideas.repec.org/a/jid/journl/y1997v06i1p5-5.html
+Citation.Year,1997,,,,,,,,,
+Citation.Month,June,,,,,,,,,
+Citation.Journal,Journal of Income Distribution,,,,,,,,,
+Citation.Volume,6,,,,,,,,,
+Citation.Number,1,,,,,,,,,
+Citation.Pages,5-5,,,,,,,,,
+Citation.Url,https://ideas.repec.org/a/jid/journl/y1997v06i1p5-5.html,,,,,,,,,
 Citation,mcdonald,,article,"McDonald, James B.;  Mantrala, Anand",The distribution of personal income: Revisited,,"Wiley Subscription Services, Inc., A Wiley Company",,,
-Citation.Journal,Journal of Applied Econometrics
-Citation.Volume,10
-Citation.Number,2
-Citation.Issn,1099-1255
-Citation.Doi,10.1002/jae.3950100208
-Citation.Pages,"201--204,"
-Citation.Year,1995
+Citation.Journal,Journal of Applied Econometrics,,,,,,,,,
+Citation.Volume,10,,,,,,,,,
+Citation.Number,2,,,,,,,,,
+Citation.Issn,1099-1255,,,,,,,,,
+Citation.Doi,10.1002/jae.3950100208,,,,,,,,,
+Citation.Pages,"201--204,",,,,,,,,,
+Citation.Year,1995,,,,,,,,,
 Citation,majumder,,article,"Majumder, Amita; Chakravarty, Satya Ranjan",Distribution of personal income: Development of a new model and its application to U.S. income data,,"Wiley Subscription Services, Inc., A Wiley Company",,,
-Citation.Journal,Journal of Applied Econometrics
-Citation.Volume,5
-Citation.Number,2
-Citation.Issn,1099-1255
-Citation.Doi,10.1002/jae.3950050206
-Citation.Pages,189--196
-Citation.Year,1990
+Citation.Journal,Journal of Applied Econometrics,,,,,,,,,
+Citation.Volume,5,,,,,,,,,
+Citation.Number,2,,,,,,,,,
+Citation.Issn,1099-1255,,,,,,,,,
+Citation.Doi,10.1002/jae.3950050206,,,,,,,,,
+Citation.Pages,189--196,,,,,,,,,
+Citation.Year,1990,,,,,,,,,

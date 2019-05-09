@@ -9,6 +9,7 @@
 import os
 import unittest
 import warnings
+
 from metapack import Downloader, MetapackDoc, MetapackUrl
 from metapack.constants import PACKAGE_PREFIX
 from metapack.terms import Reference, Resource
