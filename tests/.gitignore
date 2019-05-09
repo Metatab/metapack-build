@@ -1,1 +1,5 @@
 _packages
+_build
+*-errors.ipynb
+*-executed.ipynb
+.DS_Store
