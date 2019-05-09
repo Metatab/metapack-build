@@ -5,32 +5,34 @@
 
 """
 
+import argparse
 import re
+from pathlib import Path
+from time import time
 
 from metapack import MetapackDoc
+from metapack.cli.core import (MetapackCliMemo, err, extract_path_name,
+                               get_lib_module_dict, process_schemas, prt,
+                               update_name, write_doc)
 from metapack.package import Downloader
-from metapack.cli.core import prt, err, warn, metatab_info, get_lib_module_dict, write_doc, update_name, \
-    extract_path_name, MetapackCliMemo, process_schemas
-from metapack_build.build import  make_excel_package, make_filesystem_package, make_csv_package, make_zip_package
+from metapack_build.build import (make_csv_package, make_excel_package,
+                                  make_filesystem_package, make_zip_package)
 from rowgenerators import parse_app_url
-from rowgenerators.exceptions import SourceError
 from rowgenerators.util import clean_cache
 from tableintuit import RowIntuitError
-import argparse
-from pathlib import Path
-
-
-from time import time
 
 last_dl_message = time()
 
+
 def build_downloader_callback(msg_type, message, read_len, total_len):
     global last_dl_message
-    if time() > last_dl_message+5:
+    if time() > last_dl_message + 5:
         print("\rDownloading {} {} {} bytes ".format(msg_type, message, total_len), end='')
         last_dl_message = time()
 
+
 downloader = Downloader.get_instance()
+
 
 def build(subparsers):
     """
@@ -47,8 +49,8 @@ def build(subparsers):
 
         $ mp build
 
-    To build all of the package types: 
-    
+    To build all of the package types:
+
     .. code-block:: bash
 
         $ mp build -fezc
@@ -68,20 +70,19 @@ def build(subparsers):
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog='')
 
-
     parser.set_defaults(run_command=run_metapack)
 
     parser.add_argument('metatabfile', nargs='?',
                         help="Path or URL to a metatab file. If not provided, defaults to 'metadata.csv'. "
-                          )
+                        )
 
     parser.add_argument('-p', '--profile', help="Name of a BOTO or AWS credentails profile", required=False)
 
     parser.add_argument('-D', '--package-directory', help="Write Zip, Excel and CSV packages to an alternate directory",
-                            required=False)
+                        required=False)
 
     parser.add_argument('-F', '--force', action='store_true', default=False,
-                             help='Force some operations, like updating the name and building packages')
+                        help='Force some operations, like updating the name and building packages')
 
     parser.add_argument('-R', '--reuse-resources', action='store_true', default=False,
                         help='When building Filesystem package, try to reuse resources built in prior build')
@@ -89,17 +90,14 @@ def build(subparsers):
     group = parser.add_mutually_exclusive_group()
 
     group.add_argument('-n', '--nonversion-name', action='store_true', default=False,
-                        help='Write file packages with non-versioned names')
+                       help='Write file packages with non-versioned names')
 
     group.add_argument('-N', '--nonversion-link', action='store_true', default=False,
-                        help='Create links with nonversioned names to file packages')
+                       help='Create links with nonversioned names to file packages')
 
     parser.set_defaults(handler=None)
 
-
-
-    ##
-    ## Derived Package Group
+    # Derived Package Group
 
     derived_group = parser.add_argument_group('Derived Packages', 'Generate other types of packages')
 
@@ -115,8 +113,7 @@ def build(subparsers):
     derived_group.add_argument('-c', '--csv', action='store_true', default=False,
                                help='Create a CSV archive from a metatab file')
 
-    ##
-    ## Administration Group
+    # Administration Group
 
     admin_group = parser.add_argument_group('Administration', 'Information and administration')
 
@@ -139,7 +136,7 @@ def run_metapack(args):
         set_s3_profile(m.args.profile)
 
     try:
-        for handler in ( metatab_derived_handler, metatab_admin_handler):
+        for handler in (metatab_derived_handler, metatab_admin_handler):
             handler(m)
     except TooManyCastingErrors as e:
         prt('Casting Errors:')
@@ -166,7 +163,6 @@ def metatab_derived_handler(m):
     :param skip_if_exists:
     :return:
     """
-    from metapack.exc import PackageError
     from metapack.util import get_materialized_data_cache
     from shutil import rmtree
 
@@ -194,8 +190,7 @@ def metatab_derived_handler(m):
     # Remove any data that may have been cached , for instance, from Jupyter notebooks
     rmtree(get_materialized_data_cache(doc), ignore_errors=True)
 
-    reuse_resources=m.args.reuse_resources
-
+    reuse_resources = m.args.reuse_resources
 
     # Always create a filesystem package before ZIP or Excel, so we can use it as a source for
     # data for the other packages. This means that Transform processes and programs only need
@@ -205,10 +200,10 @@ def metatab_derived_handler(m):
                                               nv_link, reuse_resources=reuse_resources)
     create_list.append(('fs', url, created))
 
-    lb_path = Path( m.package_root.fspath,'last_build')
+    lb_path = Path(m.package_root.fspath, 'last_build')
 
     if created or not lb_path.exists():
-        Path( m.package_root.fspath,'last_build').touch()
+        Path(m.package_root.fspath, 'last_build').touch()
 
     m.mt_file = url
 
@@ -226,14 +221,12 @@ def metatab_derived_handler(m):
         _, url, created = make_csv_package(m.mt_file, package_dir, m.cache, env, m.args.force, nv_name, nv_link)
         create_list.append(('csv', url, created))
 
-
     index_packages(m)
 
     return create_list
 
 
 def metatab_admin_handler(m):
-
     if m.args.clean_cache:
         clean_cache('metapack')
 
@@ -260,7 +253,7 @@ def add_resource(mt_file, ref, cache):
     else:
         doc = MetapackDoc(mt_file)
 
-    if not 'Resources' in doc:
+    if 'Resources' not in doc:
         doc.new_section('Resources')
 
     doc['Resources'].args = [e for e in set(doc['Resources'].args + ['Name', 'StartLine', 'HeaderLines', 'Encoding']) if
@@ -315,8 +308,6 @@ def add_single_resource(doc, ref, cache, seen_names):
     encoding = start_line = None
     header_lines = []
 
-
-
     if not name:
         from hashlib import sha1
         name = sha1(slugify(path).encode('ascii')).hexdigest()[:12]
@@ -325,7 +316,7 @@ def add_single_resource(doc, ref, cache, seen_names):
         try:
             int(name[0])
             name = 'a' + name[1:]
-        except:
+        except Exception:
             pass
 
     return doc['Resources'].new_term(term_name, ref, name=name,
@@ -347,13 +338,14 @@ def run_row_intuit(path, cache):
 
             rows = list(islice(get_generator(url=str(u), cache=cache, ), 5000))
             return encoding, RowIntuiter().run(list(rows))
-        except (TextEncodingError, UnicodeEncodeError) as e:
+        except (TextEncodingError, UnicodeEncodeError):
             pass
 
     raise RowIntuitError('Failed to convert with any encoding')
 
+
 def index_packages(m):
-    from .index import walk_packages
+    from metapack.cli.index import walk_packages
     from metapack.index import SearchIndex, search_index_file
 
     idx = SearchIndex(search_index_file())
@@ -366,6 +358,7 @@ def index_packages(m):
 
     idx.write()
     prt("Indexed ", len(entries), 'entries')
+
 
 DATA_FORMATS = ('xls', 'xlsx', 'tsv', 'csv')
 DOC_FORMATS = ('pdf', 'doc', 'docx', 'html')
