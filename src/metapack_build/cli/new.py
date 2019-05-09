@@ -6,14 +6,12 @@ Metapack CLI program for creating new metapack package directories
 """
 
 import argparse
-import requests
-from metapack.jupyter.convert import write_metatab_notebook
-from metapack.package import *
 from pathlib import Path
 from shutil import copyfile
-from metapack.cli.core import MetapackCliMemo as _MetapackCliMemo
-from metapack.jupyter.core import edit_notebook, set_cell_source, get_cell_source
 
+import requests
+from metapack.cli.core import MetapackCliMemo as _MetapackCliMemo
+from metapack.package import Downloader
 
 downloader = Downloader.get_instance()
 
@@ -32,14 +30,14 @@ def new_args(subparsers):
     with a proper name, a `.gitignore` file, and optionally, example data,
     entries and code. Typical usage, for creating a new package with most
     of the example options, is ::
-    
-        mp new -o metatab.org -d tutorial -L -E -T "Quickstart Example Package" 
-    
+
+        mp new -o metatab.org -d tutorial -L -E -T "Quickstart Example Package"
+
     The :option:`-C` option will set a configuration file, which is a
     Metatab file that with terms that are copied into the `metadata.csv` file
     of the new package. Currently, it copies a limited number of terms,
      including:
-    
+
     - Terms in the Contacts section
     - Root.Space
     - Root.Time
@@ -73,8 +71,12 @@ def new_args(subparsers):
     parser.add_argument('-E', '--example', help="Add examples of resources",
                         action='store_true')
 
-    parser.add_argument('-J', '--jupyter', help="Create a Jupyter notebook source package",
-                        action='store_true')
+    try:
+        import metapack_jupyter # noqa
+        parser.add_argument('-J', '--jupyter', help="Create a Jupyter notebook source package",
+                            action='store_true')
+    except ImportError:
+        pass
 
     parser.add_argument('--template', help="Metatab file template, defaults to 'metatab' ", default='metatab')
     parser.add_argument('-C', '--config', help="Path to config file. "
@@ -84,15 +86,17 @@ def new_args(subparsers):
 
 
 def doc_parser():
-    from .mp import base_parser
+    from metapack.cli.mp import base_parser
 
     return new_args(base_parser())
 
-class EmptyTerm(object):
 
+class EmptyTerm(object):
     value = None
 
+
 et = EmptyTerm()
+
 
 def new_cmd(args):
     from metapack import MetapackDoc
@@ -125,7 +129,6 @@ def new_cmd(args):
 
             r = requests.get(TEMPLATE_NOTEBOOK, allow_redirects=True)
             r.raise_for_status()
-            nb_contents = r.content
 
             fp.write(r.content)
             nb_path = Path(fp.name)
@@ -171,11 +174,14 @@ def new_cmd(args):
     doc.ensure_identifier()
     doc.update_name(create_term=True)
 
-    if args.jupyter:
+    if getattr(args, 'jupyter'):  # b/c maybe metatab_jupyter is not installed
+
+        from metapack_jupyter.convert import write_metatab_notebook
+        from metapack_jupyter.core import edit_notebook, set_cell_source, get_cell_source
 
         new_nb_path = Path(f'{nv_name}.ipynb')
 
-        doc['Resources'].new_term('Root.Datafile','./'+str(new_nb_path)+"#df" ,
+        doc['Resources'].new_term('Root.Datafile', './' + str(new_nb_path) + "#df",
                                   name='local_dataframe', description='Example of using a local Dataframe')
 
         if new_nb_path.exists():
@@ -188,7 +194,7 @@ def new_cmd(args):
         with edit_notebook(new_nb_path) as nb:
             init = get_cell_source(nb, 'init')
             init += f"\nthis_package_name = '{str(new_nb_path.name)}'"
-            set_cell_source(nb,'init',init)
+            set_cell_source(nb, 'init', init)
 
         nb_path.unlink()
     else:
@@ -209,7 +215,6 @@ def new_cmd(args):
 
             if args.example:
                 doc['Resources'].new_term('Root.Datafile', 'python:pylib#row_generator', name='row_generator')
-
 
         prt(f"Writing to '{nv_name}'")
 
