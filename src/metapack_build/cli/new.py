@@ -31,7 +31,7 @@ def new_args(subparsers):
     entries and code. Typical usage, for creating a new package with most
     of the example options, is ::
 
-        mp new -o metatab.org -d tutorial -L -E -T "Quickstart Example Package"
+        mp new -o metatab.org -d tutorial -T "Quickstart Example Package"
 
     The :option:`-C` option will set a configuration file, which is a
     Metatab file that with terms that are copied into the `metadata.csv` file

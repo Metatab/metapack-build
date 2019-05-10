@@ -1,4 +1,14 @@
 # -*- coding: utf-8 -*-
+# Copyright (c) 2016 Civic Knowledge. This file is licensed under the terms of the
+# MIT License, included in this distribution as LICENSE
+
+"""
+
+metapack-build: A Metapack extension for building data packages.
+
+
+"""
+
 from pkg_resources import get_distribution, DistributionNotFound
 
 try:

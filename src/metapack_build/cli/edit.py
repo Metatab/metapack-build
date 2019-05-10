@@ -2,7 +2,7 @@
 # Revised BSD License, included in this distribution as LICENSE
 
 """
-Metapack CLI program for creating new metapack package directories
+Metapack CLI program for exditing metapack metadata in place
 """
 
 from metapack.cli.core import MetapackCliMemo as _MetapackCliMemo
