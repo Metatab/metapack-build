@@ -2,6 +2,21 @@
 metapack-build
 ==============
 
+Install
+=======
+
+Install the Metapack package from PiPy with:
+
+.. code-block:: bash
+
+    $ pip install metapack-build
+
+Quick Start
+===========
+
+
+
+
 Contents
 ========
 
