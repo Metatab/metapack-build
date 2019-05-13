@@ -1,6 +1,7 @@
-Metapack Buld Commands
-======================
+Metapack Build Commands
+=======================
 
+.. _mp_new:
 
 new: Creating New Packages
 -----------------------------
@@ -16,11 +17,45 @@ update: Update Package Information
     :prog: mp
     :start_command: update
 
-Build: Create distribution Packages
+build: Create distribution Packages
 -------------------------------------
 
 .. autoprogram:: metapack.cli.mp:base_parser()
     :prog: mp
     :start_command: build
+
+
+edit: Alter package metadata
+----------------------------
+
+.. autoprogram:: metapack.cli.mp:base_parser()
+    :prog: mp
+    :start_command: edit
+
+stats: Calculate dataset statistics
+-----------------------------------
+
+.. autoprogram:: metapack.cli.mp:base_parser()
+    :prog: mp
+    :start_command: stats
+    
+url: Add urls to metadata
+-------------------------
+
+.. autoprogram:: metapack.cli.mp:base_parser()
+    :prog: mp
+    :start_command: url
+
+s3: Create AWS S3 packages
+--------------------------
+
+.. autoprogram:: metapack.cli.mp:base_parser()
+    :prog: mp
+    :start_command: s3
+
+
+
+
+
 
 

@@ -36,7 +36,7 @@ def new_args(subparsers):
     The ``-C`` option will set a configuration file, which is a
     Metatab file that with terms that are copied into the `metadata.csv` file
     of the new package. Currently, it copies a limited number of terms,
-     including:
+    including:
 
     - Terms in the Contacts section
     - Root.Space

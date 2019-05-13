@@ -59,7 +59,7 @@ Contents
    :maxdepth: 2
 
    Getting Started <build/GettingStarted>
-   Generating rows with functions <build/GeneratingRows>    
+   Generating Rows <build/GeneratingRows>    
    Altering rows with transforms <build/Transforms>   
    Geographic data <build/Geographic>
    Basic Data Wranging <build/WranglingPackages> 
@@ -73,7 +73,7 @@ CLI Commands
 ============
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
    commands
 

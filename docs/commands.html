@@ -4,7 +4,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta charset="utf-8" />
-    <title>Metapack Buld Commands &#8212; metapack-build 0.0.2 documentation</title>
+    <title>Metapack Build Commands &#8212; metapack-build 0.0.2 documentation</title>
     <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
@@ -31,12 +31,12 @@
 
           <div class="body" role="main">
             
-  <div class="section" id="metapack-buld-commands">
-<h1>Metapack Buld Commands<a class="headerlink" href="#metapack-buld-commands" title="Permalink to this headline">¶</a></h1>
+  <div class="section" id="metapack-build-commands">
+<h1>Metapack Build Commands<a class="headerlink" href="#metapack-build-commands" title="Permalink to this headline">¶</a></h1>
 <div class="section" id="new-creating-new-packages">
-<h2>new: Creating New Packages<a class="headerlink" href="#new-creating-new-packages" title="Permalink to this headline">¶</a></h2>
-<div class="section" id="mp-new">
-<h3>mp new<a class="headerlink" href="#mp-new" title="Permalink to this headline">¶</a></h3>
+<span id="mp-new"></span><h2>new: Creating New Packages<a class="headerlink" href="#new-creating-new-packages" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="id1">
+<h3>mp new<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h3>
 <blockquote>
 <div><p>The <cite>mp new</cite> command creates source package directories
 with a proper name, a <cite>.gitignore</cite> file, and optionally, example data,
@@ -45,12 +45,10 @@ of the example options, is</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">mp</span> <span class="n">new</span> <span class="o">-</span><span class="n">o</span> <span class="n">metatab</span><span class="o">.</span><span class="n">org</span> <span class="o">-</span><span class="n">d</span> <span class="n">tutorial</span> <span class="o">-</span><span class="n">T</span> <span class="s2">&quot;Quickstart Example Package&quot;</span>
 </pre></div>
 </div>
-<p>The <a class="reference internal" href="#cmdoption-mp-new-c"><code class="xref std std-option docutils literal notranslate"><span class="pre">-C</span></code></a> option will set a configuration file, which is a
+<p>The <code class="docutils literal notranslate"><span class="pre">-C</span></code> option will set a configuration file, which is a
 Metatab file that with terms that are copied into the <cite>metadata.csv</cite> file
-of the new package. Currently, it copies a limited number of terms,</p>
-<blockquote>
-<div><p>including:</p>
-</div></blockquote>
+of the new package. Currently, it copies a limited number of terms,
+including:</p>
 <ul class="simple">
 <li><p>Terms in the Contacts section</p></li>
 <li><p>Root.Space</p></li>
@@ -229,7 +227,7 @@ of the new package. Currently, it copies a limited number of terms,</p>
 </div>
 </div>
 <div class="section" id="build-create-distribution-packages">
-<h2>Build: Create distribution Packages<a class="headerlink" href="#build-create-distribution-packages" title="Permalink to this headline">¶</a></h2>
+<h2>build: Create distribution Packages<a class="headerlink" href="#build-create-distribution-packages" title="Permalink to this headline">¶</a></h2>
 <div class="section" id="mp-build">
 <h3>mp build<a class="headerlink" href="#mp-build" title="Permalink to this headline">¶</a></h3>
 <blockquote>
@@ -247,8 +245,8 @@ Excel, Zip and CSV packages.</p>
 </pre></div>
 </div>
 <p>By default, packages are built with versioned names. The
-<a class="reference internal" href="#cmdoption-mp-build-n"><code class="xref std std-option docutils literal notranslate"><span class="pre">--nonversion-name</span></code></a> option will create file packages with
-non-versioned name, and the <code class="xref std std-option docutils literal notranslate"><span class="pre">--nonversioned-link</span></code> option will
+<code class="docutils literal notranslate"><span class="pre">--nonversion-name</span></code> option will create file packages with
+non-versioned name, and the <code class="docutils literal notranslate"><span class="pre">--nonversioned-link</span></code> option will
 produce a non-versioned soft link pointing to the versioned file.</p>
 </div></blockquote>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">usage: mp build [-h] [-p PROFILE] [-D PACKAGE_DIRECTORY] [-F] [-R] [-n | -N]</span>
@@ -342,6 +340,266 @@ produce a non-versioned soft link pointing to the versioned file.</p>
 
 </div>
 </div>
+<div class="section" id="edit-alter-package-metadata">
+<h2>edit: Alter package metadata<a class="headerlink" href="#edit-alter-package-metadata" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="mp-edit">
+<h3>mp edit<a class="headerlink" href="#mp-edit" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">usage: mp edit [-h] [-e] {add,change,delete} ...</span>
+</pre></div>
+</div>
+<dl class="option">
+<dt id="cmdoption-mp-edit-h">
+<code class="descname">-h</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">--help</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-mp-edit-h" title="Permalink to this definition">¶</a></dt>
+<dd><p>show this help message and exit</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-mp-edit-e">
+<code class="descname">-e</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">--echo</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-mp-edit-e" title="Permalink to this definition">¶</a></dt>
+<dd><p>Print the file after editing</p>
+</dd></dl>
+
+<div class="section" id="mp-edit-add">
+<h4>mp edit add<a class="headerlink" href="#mp-edit-add" title="Permalink to this headline">¶</a></h4>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">usage: mp edit add [-h] [-a ARG] term value [metatabfile]</span>
+</pre></div>
+</div>
+<dl class="option">
+<dt id="cmdoption-mp-edit-add-arg-term">
+<code class="descname">term</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-mp-edit-add-arg-term" title="Permalink to this definition">¶</a></dt>
+<dd><p>A fully qualified term. Prefix with a third component to set the section ( ‘Resources.Root.Datafile’ )</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-mp-edit-add-arg-value">
+<code class="descname">value</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-mp-edit-add-arg-value" title="Permalink to this definition">¶</a></dt>
+<dd><p>The term value, for add and edit</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-mp-edit-add-arg-metatabfile">
+<code class="descname">metatabfile</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-mp-edit-add-arg-metatabfile" title="Permalink to this definition">¶</a></dt>
+<dd><p>Path or URL to a metatab file. If not provided, defaults to ‘metadata.csv’</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-mp-edit-add-h">
+<code class="descname">-h</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">--help</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-mp-edit-add-h" title="Permalink to this definition">¶</a></dt>
+<dd><p>show this help message and exit</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-mp-edit-add-a">
+<code class="descname">-a</code><code class="descclassname"> &lt;arg&gt;</code><code class="descclassname">, </code><code class="descname">--arg</code><code class="descclassname"> &lt;arg&gt;</code><a class="headerlink" href="#cmdoption-mp-edit-add-a" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add an additional argument: ‘Name=value’</p>
+</dd></dl>
+
+</div>
+<div class="section" id="mp-edit-change">
+<h4>mp edit change<a class="headerlink" href="#mp-edit-change" title="Permalink to this headline">¶</a></h4>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">usage: mp edit change [-h] term value [metatabfile]</span>
+</pre></div>
+</div>
+<dl class="option">
+<dt id="cmdoption-mp-edit-change-arg-term">
+<code class="descname">term</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-mp-edit-change-arg-term" title="Permalink to this definition">¶</a></dt>
+<dd><p>A fully qualified term. Prefix with a third component to set the section ( ‘Resources.Root.Datafile’ )</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-mp-edit-change-arg-value">
+<code class="descname">value</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-mp-edit-change-arg-value" title="Permalink to this definition">¶</a></dt>
+<dd><p>The term value, for add and edit</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-mp-edit-change-arg-metatabfile">
+<code class="descname">metatabfile</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-mp-edit-change-arg-metatabfile" title="Permalink to this definition">¶</a></dt>
+<dd><p>Path or URL to a metatab file. If not provided, defaults to ‘metadata.csv’</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-mp-edit-change-h">
+<code class="descname">-h</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">--help</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-mp-edit-change-h" title="Permalink to this definition">¶</a></dt>
+<dd><p>show this help message and exit</p>
+</dd></dl>
+
+</div>
+<div class="section" id="mp-edit-delete">
+<h4>mp edit delete<a class="headerlink" href="#mp-edit-delete" title="Permalink to this headline">¶</a></h4>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">usage: mp edit delete [-h] term [metatabfile]</span>
+</pre></div>
+</div>
+<dl class="option">
+<dt id="cmdoption-mp-edit-delete-arg-term">
+<code class="descname">term</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-mp-edit-delete-arg-term" title="Permalink to this definition">¶</a></dt>
+<dd><p>A fully qualified term. Prefix with a third component to set the section ( ‘Resources.Root.Datafile’ )</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-mp-edit-delete-arg-metatabfile">
+<code class="descname">metatabfile</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-mp-edit-delete-arg-metatabfile" title="Permalink to this definition">¶</a></dt>
+<dd><p>Path or URL to a metatab file. If not provided, defaults to ‘metadata.csv’</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-mp-edit-delete-h">
+<code class="descname">-h</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">--help</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-mp-edit-delete-h" title="Permalink to this definition">¶</a></dt>
+<dd><p>show this help message and exit</p>
+</dd></dl>
+
+</div>
+</div>
+</div>
+<div class="section" id="stats-calculate-dataset-statistics">
+<h2>stats: Calculate dataset statistics<a class="headerlink" href="#stats-calculate-dataset-statistics" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="mp-stats">
+<h3>mp stats<a class="headerlink" href="#mp-stats" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">usage: mp stats [-h] [-n ROWS] [-s SAMPLE] [-H HEAD] [-d] [-D] [-V] [-T]</span>
+<span class="go">                [metatabfile]</span>
+</pre></div>
+</div>
+<dl class="option">
+<dt id="cmdoption-mp-stats-arg-metatabfile">
+<code class="descname">metatabfile</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-mp-stats-arg-metatabfile" title="Permalink to this definition">¶</a></dt>
+<dd><p>Path or URL to a metatab file. If not provided, defaults to ‘metadata.csv’</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-mp-stats-h">
+<code class="descname">-h</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">--help</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-mp-stats-h" title="Permalink to this definition">¶</a></dt>
+<dd><p>show this help message and exit</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-mp-stats-n">
+<code class="descname">-n</code><code class="descclassname"> &lt;rows&gt;</code><code class="descclassname">, </code><code class="descname">--rows</code><code class="descclassname"> &lt;rows&gt;</code><a class="headerlink" href="#cmdoption-mp-stats-n" title="Permalink to this definition">¶</a></dt>
+<dd><p>Estimate of number of rows, for sampling</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-mp-stats-s">
+<code class="descname">-s</code><code class="descclassname"> &lt;sample&gt;</code><code class="descclassname">, </code><code class="descname">--sample</code><code class="descclassname"> &lt;sample&gt;</code><a class="headerlink" href="#cmdoption-mp-stats-s" title="Permalink to this definition">¶</a></dt>
+<dd><p>Sample a subset of &lt;SAMPLE&gt; rows</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-mp-stats-head">
+<code class="descname">-H</code><code class="descclassname"> &lt;head&gt;</code><code class="descclassname">, </code><code class="descname">--head</code><code class="descclassname"> &lt;head&gt;</code><a class="headerlink" href="#cmdoption-mp-stats-head" title="Permalink to this definition">¶</a></dt>
+<dd><p>Use only the first &lt;HEAD&gt; rows. Can substitute for –rows</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-mp-stats-d">
+<code class="descname">-d</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">--descriptive</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-mp-stats-d" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate descriptive stats; min, max, mean, std, quartiles</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-mp-stats-distribution">
+<code class="descname">-D</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">--distribution</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-mp-stats-distribution" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate distribution stats; histogram, skew, kurtosis</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-mp-stats-v">
+<code class="descname">-V</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">--values</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-mp-stats-v" title="Permalink to this definition">¶</a></dt>
+<dd><p>Display a set of unique values</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-mp-stats-t">
+<code class="descname">-T</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">--types</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-mp-stats-t" title="Permalink to this definition">¶</a></dt>
+<dd><p>Intuit types instead</p>
+</dd></dl>
+
+</div>
+</div>
+<div class="section" id="url-add-urls-to-metadata">
+<h2>url: Add urls to metadata<a class="headerlink" href="#url-add-urls-to-metadata" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="mp-url">
+<h3>mp url<a class="headerlink" href="#mp-url" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">usage: mp url [-h] [-a ADD | -E ENUMERATE | -S SCRAPE] [metatabfile]</span>
+</pre></div>
+</div>
+<dl class="option">
+<dt id="cmdoption-mp-url-arg-metatabfile">
+<code class="descname">metatabfile</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-mp-url-arg-metatabfile" title="Permalink to this definition">¶</a></dt>
+<dd><p>Path or URL to a metatab file. If not provided, defaults to ‘metadata.csv’</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-mp-url-h">
+<code class="descname">-h</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">--help</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-mp-url-h" title="Permalink to this definition">¶</a></dt>
+<dd><p>show this help message and exit</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-mp-url-a">
+<code class="descname">-a</code><code class="descclassname"> &lt;add&gt;</code><code class="descclassname">, </code><code class="descname">--add</code><code class="descclassname"> &lt;add&gt;</code><a class="headerlink" href="#cmdoption-mp-url-a" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add a file or url to the resources. With a directory add a data files in the directory. If given a URL to a web page, will add all links that point to CSV, Excel Files and data files in ZIP files. (Caution: it will download and cache all of these files. )</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-mp-url-e">
+<code class="descname">-E</code><code class="descclassname"> &lt;enumerate&gt;</code><code class="descclassname">, </code><code class="descname">--enumerate</code><code class="descclassname"> &lt;enumerate&gt;</code><a class="headerlink" href="#cmdoption-mp-url-e" title="Permalink to this definition">¶</a></dt>
+<dd><p>Enumerate the resources referenced from a URL. Does not alter the Metatab file</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-mp-url-s">
+<code class="descname">-S</code><code class="descclassname"> &lt;scrape&gt;</code><code class="descclassname">, </code><code class="descname">--scrape</code><code class="descclassname"> &lt;scrape&gt;</code><a class="headerlink" href="#cmdoption-mp-url-s" title="Permalink to this definition">¶</a></dt>
+<dd><p>Scrape data and documentation URLs from a web page</p>
+</dd></dl>
+
+<p>Cache dir: /Users/eric/Library/Application Support/metapack/</p>
+</div>
+</div>
+<div class="section" id="s3-create-aws-s3-packages">
+<h2>s3: Create AWS S3 packages<a class="headerlink" href="#s3-create-aws-s3-packages" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="mp-s3">
+<h3>mp s3<a class="headerlink" href="#mp-s3" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">usage: mp s3 [-h] [-p PROFILE] [-s S3] [-F] [-C] [metatabfile]</span>
+</pre></div>
+</div>
+<dl class="option">
+<dt id="cmdoption-mp-s3-arg-metatabfile">
+<code class="descname">metatabfile</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-mp-s3-arg-metatabfile" title="Permalink to this definition">¶</a></dt>
+<dd><p>Path to a Metatab file</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-mp-s3-h">
+<code class="descname">-h</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">--help</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-mp-s3-h" title="Permalink to this definition">¶</a></dt>
+<dd><p>show this help message and exit</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-mp-s3-p">
+<code class="descname">-p</code><code class="descclassname"> &lt;profile&gt;</code><code class="descclassname">, </code><code class="descname">--profile</code><code class="descclassname"> &lt;profile&gt;</code><a class="headerlink" href="#cmdoption-mp-s3-p" title="Permalink to this definition">¶</a></dt>
+<dd><p>Name of a BOTO or AWS credentials profile</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-mp-s3-s">
+<code class="descname">-s</code><code class="descclassname"> &lt;s3&gt;</code><code class="descclassname">, </code><code class="descname">--s3</code><code class="descclassname"> &lt;s3&gt;</code><a class="headerlink" href="#cmdoption-mp-s3-s" title="Permalink to this definition">¶</a></dt>
+<dd><p>URL to S3 where packages will be stored</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-mp-s3-f">
+<code class="descname">-F</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">--force</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-mp-s3-f" title="Permalink to this definition">¶</a></dt>
+<dd><p>Force write for all files</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-mp-s3-c">
+<code class="descname">-C</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">--credentials</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-mp-s3-c" title="Permalink to this definition">¶</a></dt>
+<dd><p>Show S3 Credentials and exit. Eval this string to setup credentials in other shells.</p>
+</dd></dl>
+
+</div>
+</div>
 </div>
 
 
@@ -363,7 +621,7 @@ produce a non-versioned soft link pointing to the versioned file.</p>
 <h3>Navigation</h3>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="build/GettingStarted.html">Getting Started</a></li>
-<li class="toctree-l1"><a class="reference internal" href="build/GeneratingRows.html">Generating rows with functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="build/GeneratingRows.html">Generating Rows</a></li>
 <li class="toctree-l1"><a class="reference internal" href="build/Transforms.html">Altering rows with transforms</a></li>
 <li class="toctree-l1"><a class="reference internal" href="build/Geographic.html">Geographic data</a></li>
 <li class="toctree-l1"><a class="reference internal" href="build/WranglingPackages.html">Basic Data Wranging</a></li>
@@ -373,12 +631,7 @@ produce a non-versioned soft link pointing to the versioned file.</p>
 <li class="toctree-l1"><a class="reference internal" href="api/modules.html">Module Reference</a></li>
 </ul>
 <ul class="current">
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Metapack Buld Commands</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#new-creating-new-packages">new: Creating New Packages</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#update-update-package-information">update: Update Package Information</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#build-create-distribution-packages">Build: Create distribution Packages</a></li>
-</ul>
-</li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Metapack Build Commands</a></li>
 </ul>
 
 <div class="relations">
