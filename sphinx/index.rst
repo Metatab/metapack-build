@@ -14,6 +14,41 @@ Install the Metapack package from PiPy with:
 Quick Start
 ===========
 
+Generate a new Metapack package with examples:
+
+.. code-block:: bash
+
+    $ mp new -o metatab.org -d tutorial -L -E -T "Quickstart Example Package"
+
+You now have a Metapack package in the :file:`metatab.org-tutorial` directory,
+with two example data resources. Build the data packages with:
+
+.. code-block:: bash
+
+    $ mp build metatab.org-tutorial/ -f -e -z
+
+Now the :file:`metatab.org-tutorial/_packages` directory has a Zip, Excel and
+Filesystem package, along with links to each package's unversioned name.
+
+Explore the schema for one of the built packages with:
+
+.. code-block:: bash
+
+    $ cd metatab.org-tutorial/_packages/
+    $ mp info -s metatab.org-tutorial-1.zip#random_names
+
+And dump a sample of the data for a resource in a table format:
+
+.. code-block:: bash
+
+    $ mp run -T metatab.org-tutorial-1.zip#random_names
+
+Also, open the Excel package (metatab.org-tutorial-1.xlsx) to see the pretty
+formatting of the metadata, and the generated HTML documentation in
+:file:`metatab.org-tutorial-1/index.html`
+
+That's just a quick preview of how the system works. For more details see
+:doc:`GettingStarted`.
 
 
 
@@ -31,8 +66,6 @@ Contents
 
 CLI Commands
 ============
-
-
 
 * :doc:`new <cli/new>`. Create a new Metapack Package
 * :doc:`update<cli/update>` . Update a Metatab file
