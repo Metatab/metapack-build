@@ -1,0 +1,7 @@
+metapack_build
+==============
+
+.. toctree::
+   :maxdepth: 4
+
+   metapack_build

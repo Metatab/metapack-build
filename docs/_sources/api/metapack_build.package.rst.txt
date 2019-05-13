@@ -1,0 +1,62 @@
+metapack\_build.package package
+===============================
+
+Submodules
+----------
+
+metapack\_build.package.core module
+-----------------------------------
+
+.. automodule:: metapack_build.package.core
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+metapack\_build.package.csv module
+----------------------------------
+
+.. automodule:: metapack_build.package.csv
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+metapack\_build.package.excel module
+------------------------------------
+
+.. automodule:: metapack_build.package.excel
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+metapack\_build.package.filesystem module
+-----------------------------------------
+
+.. automodule:: metapack_build.package.filesystem
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+metapack\_build.package.s3 module
+---------------------------------
+
+.. automodule:: metapack_build.package.s3
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+metapack\_build.package.zip module
+----------------------------------
+
+.. automodule:: metapack_build.package.zip
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+
+Module contents
+---------------
+
+.. automodule:: metapack_build.package
+    :members:
+    :undoc-members:
+    :show-inheritance:

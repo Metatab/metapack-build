@@ -1,0 +1,221 @@
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <title>new: Creating New Packages &#8212; metapack-build 0.0.2 documentation</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="new-creating-new-packages">
+<h1>new: Creating New Packages<a class="headerlink" href="#new-creating-new-packages" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="mp-new">
+<h2>mp new<a class="headerlink" href="#mp-new" title="Permalink to this headline">¶</a></h2>
+<blockquote>
+<div><p>The <cite>mp new</cite> command creates source package directories
+with a proper name, a <cite>.gitignore</cite> file, and optionally, example data,
+entries and code. Typical usage, for creating a new package with most
+of the example options, is</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">mp</span> <span class="n">new</span> <span class="o">-</span><span class="n">o</span> <span class="n">metatab</span><span class="o">.</span><span class="n">org</span> <span class="o">-</span><span class="n">d</span> <span class="n">tutorial</span> <span class="o">-</span><span class="n">T</span> <span class="s2">&quot;Quickstart Example Package&quot;</span>
+</pre></div>
+</div>
+<p>The <a class="reference internal" href="#cmdoption-mp-new-c"><code class="xref std std-option docutils literal notranslate"><span class="pre">-C</span></code></a> option will set a configuration file, which is a
+Metatab file that with terms that are copied into the <cite>metadata.csv</cite> file
+of the new package. Currently, it copies a limited number of terms,</p>
+<blockquote>
+<div><p>including:</p>
+</div></blockquote>
+<ul class="simple">
+<li><p>Terms in the Contacts section</p></li>
+<li><p>Root.Space</p></li>
+<li><p>Root.Time</p></li>
+<li><p>Root.Grain</p></li>
+<li><p>Root.Variant</p></li>
+<li><p>Root.Version</p></li>
+</ul>
+</div></blockquote>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">usage: mp new [-h] [-o ORIGIN] -d DATASET [-t TIME] [-s SPACE] [-g GRAIN]</span>
+<span class="go">              [-v VARIANT] [-r REVISION] [-T TITLE] [-L] [-E] [-J]</span>
+<span class="go">              [--template TEMPLATE] [-C CONFIG]</span>
+</pre></div>
+</div>
+<dl class="option">
+<dt id="cmdoption-mp-new-h">
+<code class="descname">-h</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">--help</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-mp-new-h" title="Permalink to this definition">¶</a></dt>
+<dd><p>show this help message and exit</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-mp-new-o">
+<code class="descname">-o</code><code class="descclassname"> &lt;origin&gt;</code><code class="descclassname">, </code><code class="descname">--origin</code><code class="descclassname"> &lt;origin&gt;</code><a class="headerlink" href="#cmdoption-mp-new-o" title="Permalink to this definition">¶</a></dt>
+<dd><p>Dataset origin, usually a second-level domain name. Required</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-mp-new-d">
+<code class="descname">-d</code><code class="descclassname"> &lt;dataset&gt;</code><code class="descclassname">, </code><code class="descname">--dataset</code><code class="descclassname"> &lt;dataset&gt;</code><a class="headerlink" href="#cmdoption-mp-new-d" title="Permalink to this definition">¶</a></dt>
+<dd><p>Main dataset name. Required</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-mp-new-t">
+<code class="descname">-t</code><code class="descclassname"> &lt;time&gt;</code><code class="descclassname">, </code><code class="descname">--time</code><code class="descclassname"> &lt;time&gt;</code><a class="headerlink" href="#cmdoption-mp-new-t" title="Permalink to this definition">¶</a></dt>
+<dd><p>Temporal extents, usually a year, ISO8601 time, or interval.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-mp-new-s">
+<code class="descname">-s</code><code class="descclassname"> &lt;space&gt;</code><code class="descclassname">, </code><code class="descname">--space</code><code class="descclassname"> &lt;space&gt;</code><a class="headerlink" href="#cmdoption-mp-new-s" title="Permalink to this definition">¶</a></dt>
+<dd><p>Space, geographic extent, such as a name of a state or a Census geoid</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-mp-new-g">
+<code class="descname">-g</code><code class="descclassname"> &lt;grain&gt;</code><code class="descclassname">, </code><code class="descname">--grain</code><code class="descclassname"> &lt;grain&gt;</code><a class="headerlink" href="#cmdoption-mp-new-g" title="Permalink to this definition">¶</a></dt>
+<dd><p>Grain, the type of entity a row represents</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-mp-new-v">
+<code class="descname">-v</code><code class="descclassname"> &lt;variant&gt;</code><code class="descclassname">, </code><code class="descname">--variant</code><code class="descclassname"> &lt;variant&gt;</code><a class="headerlink" href="#cmdoption-mp-new-v" title="Permalink to this definition">¶</a></dt>
+<dd><p>Variant, any distinguishing string</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-mp-new-r">
+<code class="descname">-r</code><code class="descclassname"> &lt;revision&gt;</code><code class="descclassname">, </code><code class="descname">--revision</code><code class="descclassname"> &lt;revision&gt;</code><a class="headerlink" href="#cmdoption-mp-new-r" title="Permalink to this definition">¶</a></dt>
+<dd><p>Version, defaults to 1</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-mp-new-title">
+<code class="descname">-T</code><code class="descclassname"> &lt;title&gt;</code><code class="descclassname">, </code><code class="descname">--title</code><code class="descclassname"> &lt;title&gt;</code><a class="headerlink" href="#cmdoption-mp-new-title" title="Permalink to this definition">¶</a></dt>
+<dd><p>Set the title</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-mp-new-l">
+<code class="descname">-L</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">--pylib</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-mp-new-l" title="Permalink to this definition">¶</a></dt>
+<dd><p>Configure a pylib directory for Python code extensions</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-mp-new-e">
+<code class="descname">-E</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">--example</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-mp-new-e" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add examples of resources</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-mp-new-j">
+<code class="descname">-J</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">--jupyter</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-mp-new-j" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create a Jupyter notebook source package</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-mp-new-template">
+<code class="descname">--template</code><code class="descclassname"> &lt;template&gt;</code><a class="headerlink" href="#cmdoption-mp-new-template" title="Permalink to this definition">¶</a></dt>
+<dd><p>Metatab file template, defaults to ‘metatab’</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-mp-new-c">
+<code class="descname">-C</code><code class="descclassname"> &lt;config&gt;</code><code class="descclassname">, </code><code class="descname">--config</code><code class="descclassname"> &lt;config&gt;</code><a class="headerlink" href="#cmdoption-mp-new-c" title="Permalink to this definition">¶</a></dt>
+<dd><p>Path to config file. Defaults to ~/.metapack-defaults.csv or value of METAPACK_DEFAULTS env var.Sets defaults for specia root terms and the Contacts section.</p>
+</dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">metapack-build</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../license.html">License</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../authors.html">Authors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../changelog.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/modules.html">Module Reference</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Eric Busboom.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.0.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/cli/new.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

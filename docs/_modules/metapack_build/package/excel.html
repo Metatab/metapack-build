@@ -1,0 +1,221 @@
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <title>metapack_build.package.excel &#8212; metapack-build 0.0.2 documentation</title>
+    <link rel="stylesheet" href="../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for metapack_build.package.excel</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Copyright (c) 2017 Civic Knowledge. This file is licensed under the terms of the</span>
+<span class="c1"># MIT License, included in this distribution as LICENSE</span>
+
+<span class="sd">&quot;&quot;&quot; &quot;&quot;&quot;</span>
+
+
+<span class="kn">from</span> <span class="nn">.core</span> <span class="k">import</span> <span class="n">PackageBuilder</span>
+<span class="kn">from</span> <span class="nn">metapack.util</span> <span class="k">import</span> <span class="n">datetime_now</span>
+
+<div class="viewcode-block" id="ExcelPackageBuilder"><a class="viewcode-back" href="../../../api/metapack_build.package.html#metapack_build.package.excel.ExcelPackageBuilder">[docs]</a><span class="k">class</span> <span class="nc">ExcelPackageBuilder</span><span class="p">(</span><span class="n">PackageBuilder</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;An Excel File Package&quot;&quot;&quot;</span>
+
+    <span class="n">type_code</span> <span class="o">=</span> <span class="s1">&#39;xlsx&#39;</span>
+    <span class="n">type_suffix</span> <span class="o">=</span> <span class="s1">&#39;.xlsx&#39;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">source_ref</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">package_root</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>  <span class="n">callback</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">env</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">source_ref</span><span class="p">,</span> <span class="n">package_root</span><span class="p">,</span> <span class="n">callback</span><span class="p">,</span> <span class="n">env</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">package_path</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cache_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">make_package_path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">package_root</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">package_name</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">cache_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">package_name</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">type_suffix</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">package_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">package_root</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cache_path</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">package_root</span><span class="o">.</span><span class="n">ensure_dir</span><span class="p">()</span>
+
+<div class="viewcode-block" id="ExcelPackageBuilder.make_package_path"><a class="viewcode-back" href="../../../api/metapack_build.package.html#metapack_build.package.excel.ExcelPackageBuilder.make_package_path">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">make_package_path</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">package_root</span><span class="p">,</span> <span class="n">package_name</span><span class="p">):</span>
+
+        <span class="n">cache_path</span> <span class="o">=</span> <span class="n">package_name</span> <span class="o">+</span> <span class="bp">cls</span><span class="o">.</span><span class="n">type_suffix</span>
+
+        <span class="n">package_path</span> <span class="o">=</span> <span class="n">package_root</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">cache_path</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">package_path</span><span class="p">,</span> <span class="n">cache_path</span></div>
+
+<div class="viewcode-block" id="ExcelPackageBuilder.save"><a class="viewcode-back" href="../../../api/metapack_build.package.html#metapack_build.package.excel.ExcelPackageBuilder.save">[docs]</a>    <span class="k">def</span> <span class="nf">save</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="kn">from</span> <span class="nn">openpyxl</span> <span class="k">import</span> <span class="n">Workbook</span>
+        <span class="kn">from</span> <span class="nn">openpyxl.cell</span> <span class="k">import</span> <span class="n">WriteOnlyCell</span>
+        <span class="kn">from</span> <span class="nn">openpyxl.styles</span> <span class="k">import</span> <span class="n">PatternFill</span><span class="p">,</span> <span class="n">Alignment</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_is_ready</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">wb</span> <span class="o">=</span> <span class="n">Workbook</span><span class="p">(</span><span class="n">write_only</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="n">meta_ws</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">wb</span><span class="o">.</span><span class="n">create_sheet</span><span class="p">()</span>
+        <span class="n">meta_ws</span><span class="o">.</span><span class="n">title</span> <span class="o">=</span> <span class="s2">&quot;meta&quot;</span>
+        <span class="n">meta_ws</span><span class="o">.</span><span class="n">sheet_properties</span><span class="o">.</span><span class="n">tabColor</span> <span class="o">=</span> <span class="s2">&quot;8888ff&quot;</span>
+
+        <span class="n">meta_ws</span><span class="o">.</span><span class="n">column_dimensions</span><span class="p">[</span><span class="s1">&#39;A&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">width</span> <span class="o">=</span> <span class="mi">15</span>
+        <span class="n">meta_ws</span><span class="o">.</span><span class="n">column_dimensions</span><span class="p">[</span><span class="s1">&#39;B&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">width</span> <span class="o">=</span> <span class="mi">40</span>
+        <span class="n">meta_ws</span><span class="o">.</span><span class="n">column_dimensions</span><span class="p">[</span><span class="s1">&#39;C&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">width</span> <span class="o">=</span> <span class="mi">20</span>
+        <span class="n">meta_ws</span><span class="o">.</span><span class="n">column_dimensions</span><span class="p">[</span><span class="s1">&#39;D&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">width</span> <span class="o">=</span> <span class="mi">20</span>
+        <span class="n">meta_ws</span><span class="o">.</span><span class="n">column_dimensions</span><span class="p">[</span><span class="s1">&#39;E&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">width</span> <span class="o">=</span> <span class="mi">20</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">sections</span><span class="o">.</span><span class="n">resources</span><span class="o">.</span><span class="n">sort_by_term</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">load_declares</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">doc</span><span class="o">.</span><span class="n">cleanse</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_load_resources</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_clean_doc</span><span class="p">()</span>
+
+        <span class="n">fill</span> <span class="o">=</span> <span class="n">PatternFill</span><span class="p">(</span><span class="s2">&quot;solid&quot;</span><span class="p">,</span> <span class="n">fgColor</span><span class="o">=</span><span class="s2">&quot;acc0e0&quot;</span><span class="p">)</span>  <span class="c1"># PatternFill(patternType=&#39;gray125&#39;)</span>
+        <span class="n">table_fill</span> <span class="o">=</span> <span class="n">PatternFill</span><span class="p">(</span><span class="s2">&quot;solid&quot;</span><span class="p">,</span> <span class="n">fgColor</span><span class="o">=</span><span class="s2">&quot;d9dce0&quot;</span><span class="p">)</span>  <span class="c1"># PatternFill(patternType=&#39;gray125&#39;)</span>
+
+        <span class="n">alignment</span> <span class="o">=</span> <span class="n">Alignment</span><span class="p">(</span><span class="n">wrap_text</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_doc</span><span class="p">[</span><span class="s1">&#39;Root&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">get_or_new_term</span><span class="p">(</span><span class="s1">&#39;Root.Issued&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">datetime_now</span><span class="p">()</span>
+
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">row</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">doc</span><span class="o">.</span><span class="n">rows</span><span class="p">,</span> <span class="mi">1</span><span class="p">):</span>
+
+            <span class="k">if</span> <span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;Section&#39;</span> <span class="ow">or</span> <span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;Table&#39;</span><span class="p">:</span>
+                <span class="n">styled_row</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">row</span> <span class="o">+</span> <span class="p">[</span><span class="s1">&#39;&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="mi">5</span><span class="p">:</span>
+                    <span class="n">cell</span> <span class="o">=</span> <span class="n">WriteOnlyCell</span><span class="p">(</span><span class="n">meta_ws</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">c</span><span class="p">)</span>
+                    <span class="n">cell</span><span class="o">.</span><span class="n">fill</span> <span class="o">=</span> <span class="n">fill</span> <span class="k">if</span> <span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;Section&#39;</span> <span class="k">else</span> <span class="n">table_fill</span>
+                    <span class="n">styled_row</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cell</span><span class="p">)</span>
+                <span class="n">meta_ws</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">styled_row</span><span class="p">)</span>
+
+
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">meta_ws</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">row</span><span class="p">)</span>
+
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">wb</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">package_path</span><span class="o">.</span><span class="n">path</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">package_path</span></div>
+
+    <span class="k">def</span> <span class="nf">_load_resources</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Remove the geography from the files, since it isn&#39;t particularly useful in Excel&quot;&quot;&quot;</span>
+
+        <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">doc</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;Root.Table&#39;</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">t</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;Table.Column&#39;</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">c</span><span class="o">.</span><span class="n">get_value</span><span class="p">(</span><span class="s1">&#39;datatype&#39;</span><span class="p">)</span> <span class="o">==</span> <span class="s1">&#39;geometry&#39;</span><span class="p">:</span>
+                    <span class="n">c</span><span class="p">[</span><span class="s1">&#39;transform&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;^empty_str&#39;</span>
+                    <span class="n">c</span><span class="p">[</span><span class="s1">&#39;datatype&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;text&#39;</span>
+
+        <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">_load_resources</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_load_resource</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">source_r</span><span class="p">,</span> <span class="n">abs_path</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+
+        <span class="n">r</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_doc</span><span class="o">.</span><span class="n">resource</span><span class="p">(</span><span class="n">source_r</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+
+        <span class="kn">from</span> <span class="nn">itertools</span> <span class="k">import</span> <span class="n">islice</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">prt</span><span class="p">(</span><span class="s2">&quot;Loading data for sheet &#39;</span><span class="si">{}</span><span class="s2">&#39; &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">name</span><span class="p">))</span>
+
+        <span class="n">ws</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">wb</span><span class="o">.</span><span class="n">create_sheet</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+
+        <span class="n">ws</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">headers</span><span class="p">)</span>
+
+
+        <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">islice</span><span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="kc">None</span><span class="p">):</span>
+            <span class="n">ws</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">row</span><span class="p">)</span>
+
+        <span class="n">r</span><span class="o">.</span><span class="n">url</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">name</span></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../index.html">metapack-build</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../license.html">License</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../authors.html">Authors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../changelog.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/modules.html">Module Reference</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Eric Busboom.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.0.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

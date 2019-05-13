@@ -1,0 +1,338 @@
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <title>metapack_build.cli.new &#8212; metapack-build 0.0.2 documentation</title>
+    <link rel="stylesheet" href="../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for metapack_build.cli.new</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Copyright (c) 2017 Civic Knowledge. This file is licensed under the terms of the</span>
+<span class="c1"># Revised BSD License, included in this distribution as LICENSE</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Metapack CLI program for creating new metapack package directories</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">argparse</span>
+<span class="kn">from</span> <span class="nn">pathlib</span> <span class="k">import</span> <span class="n">Path</span>
+<span class="kn">from</span> <span class="nn">shutil</span> <span class="k">import</span> <span class="n">copyfile</span>
+
+<span class="kn">import</span> <span class="nn">requests</span>
+<span class="kn">from</span> <span class="nn">metapack.cli.core</span> <span class="k">import</span> <span class="n">MetapackCliMemo</span> <span class="k">as</span> <span class="n">_MetapackCliMemo</span>
+<span class="kn">from</span> <span class="nn">metapack.package</span> <span class="k">import</span> <span class="n">Downloader</span>
+
+<span class="n">downloader</span> <span class="o">=</span> <span class="n">Downloader</span><span class="o">.</span><span class="n">get_instance</span><span class="p">()</span>
+
+<span class="n">TEMPLATE_NOTEBOOK</span> <span class="o">=</span> <span class="s2">&quot;https://raw.githubusercontent.com/Metatab/exploratory-data-analysis/master/metadata.ipynb&quot;</span>
+
+
+<div class="viewcode-block" id="MetapackCliMemo"><a class="viewcode-back" href="../../../api/metapack_build.cli.html#metapack_build.cli.new.MetapackCliMemo">[docs]</a><span class="k">class</span> <span class="nc">MetapackCliMemo</span><span class="p">(</span><span class="n">_MetapackCliMemo</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">downloader</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">downloader</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="new_args"><a class="viewcode-back" href="../../../api/metapack_build.cli.html#metapack_build.cli.new.new_args">[docs]</a><span class="k">def</span> <span class="nf">new_args</span><span class="p">(</span><span class="n">subparsers</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    The `mp new` command creates source package directories</span>
+<span class="sd">    with a proper name, a `.gitignore` file, and optionally, example data,</span>
+<span class="sd">    entries and code. Typical usage, for creating a new package with most</span>
+<span class="sd">    of the example options, is ::</span>
+
+<span class="sd">        mp new -o metatab.org -d tutorial -T &quot;Quickstart Example Package&quot;</span>
+
+<span class="sd">    The :option:`-C` option will set a configuration file, which is a</span>
+<span class="sd">    Metatab file that with terms that are copied into the `metadata.csv` file</span>
+<span class="sd">    of the new package. Currently, it copies a limited number of terms,</span>
+<span class="sd">     including:</span>
+
+<span class="sd">    - Terms in the Contacts section</span>
+<span class="sd">    - Root.Space</span>
+<span class="sd">    - Root.Time</span>
+<span class="sd">    - Root.Grain</span>
+<span class="sd">    - Root.Variant</span>
+<span class="sd">    - Root.Version</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">parser</span> <span class="o">=</span> <span class="n">subparsers</span><span class="o">.</span><span class="n">add_parser</span><span class="p">(</span>
+        <span class="s1">&#39;new&#39;</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Create new Metatab packages&#39;</span><span class="p">,</span>
+        <span class="n">description</span><span class="o">=</span><span class="n">new_args</span><span class="o">.</span><span class="vm">__doc__</span><span class="p">,</span>
+        <span class="n">formatter_class</span><span class="o">=</span><span class="n">argparse</span><span class="o">.</span><span class="n">RawDescriptionHelpFormatter</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="n">parser</span><span class="o">.</span><span class="n">set_defaults</span><span class="p">(</span><span class="n">run_command</span><span class="o">=</span><span class="n">new_cmd</span><span class="p">)</span>
+
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;-o&#39;</span><span class="p">,</span> <span class="s1">&#39;--origin&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Dataset origin, usually a second-level domain name. Required&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;-d&#39;</span><span class="p">,</span> <span class="s1">&#39;--dataset&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Main dataset name. Required&quot;</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;-t&#39;</span><span class="p">,</span> <span class="s1">&#39;--time&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Temporal extents, usually a year, ISO8601 time, or interval. &quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;-s&#39;</span><span class="p">,</span> <span class="s1">&#39;--space&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Space, geographic extent, such as a name of a state or a Census geoid&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;-g&#39;</span><span class="p">,</span> <span class="s1">&#39;--grain&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Grain, the type of entity a row represents&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;-v&#39;</span><span class="p">,</span> <span class="s1">&#39;--variant&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Variant, any distinguishing string&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;-r&#39;</span><span class="p">,</span> <span class="s1">&#39;--revision&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Version, defaults to 1&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;-T&#39;</span><span class="p">,</span> <span class="s1">&#39;--title&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Set the title&quot;</span><span class="p">)</span>
+
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;-L&#39;</span><span class="p">,</span> <span class="s1">&#39;--pylib&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Configure a pylib directory for Python code extensions&quot;</span><span class="p">,</span>
+                        <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store_true&#39;</span><span class="p">)</span>
+
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;-E&#39;</span><span class="p">,</span> <span class="s1">&#39;--example&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Add examples of resources&quot;</span><span class="p">,</span>
+                        <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store_true&#39;</span><span class="p">)</span>
+
+    <span class="k">try</span><span class="p">:</span>
+        <span class="kn">import</span> <span class="nn">metapack_jupyter</span> <span class="c1"># noqa</span>
+        <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;-J&#39;</span><span class="p">,</span> <span class="s1">&#39;--jupyter&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Create a Jupyter notebook source package&quot;</span><span class="p">,</span>
+                            <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store_true&#39;</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+        <span class="k">pass</span>
+
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--template&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Metatab file template, defaults to &#39;metatab&#39; &quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s1">&#39;metatab&#39;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;-C&#39;</span><span class="p">,</span> <span class="s1">&#39;--config&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Path to config file. &quot;</span>
+                                               <span class="s2">&quot;Defaults to ~/.metapack-defaults.csv or value of METAPACK_DEFAULTS env var.&quot;</span>
+                                               <span class="s2">&quot;Sets defaults for specia root terms and the Contacts section.&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">parser</span></div>
+
+
+<div class="viewcode-block" id="doc_parser"><a class="viewcode-back" href="../../../api/metapack_build.cli.html#metapack_build.cli.new.doc_parser">[docs]</a><span class="k">def</span> <span class="nf">doc_parser</span><span class="p">():</span>
+    <span class="kn">from</span> <span class="nn">metapack.cli.mp</span> <span class="k">import</span> <span class="n">base_parser</span>
+
+    <span class="k">return</span> <span class="n">new_args</span><span class="p">(</span><span class="n">base_parser</span><span class="p">())</span></div>
+
+
+<div class="viewcode-block" id="EmptyTerm"><a class="viewcode-back" href="../../../api/metapack_build.cli.html#metapack_build.cli.new.EmptyTerm">[docs]</a><span class="k">class</span> <span class="nc">EmptyTerm</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="n">value</span> <span class="o">=</span> <span class="kc">None</span></div>
+
+
+<span class="n">et</span> <span class="o">=</span> <span class="n">EmptyTerm</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="new_cmd"><a class="viewcode-back" href="../../../api/metapack_build.cli.html#metapack_build.cli.new.new_cmd">[docs]</a><span class="k">def</span> <span class="nf">new_cmd</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
+    <span class="kn">from</span> <span class="nn">metapack</span> <span class="k">import</span> <span class="n">MetapackDoc</span>
+    <span class="kn">from</span> <span class="nn">metapack.util</span> <span class="k">import</span> <span class="n">make_metatab_file</span><span class="p">,</span> <span class="n">datetime_now</span><span class="p">,</span> <span class="n">ensure_dir</span>
+    <span class="kn">from</span> <span class="nn">metapack.cli.core</span> <span class="k">import</span> <span class="n">write_doc</span><span class="p">,</span> <span class="n">prt</span><span class="p">,</span> <span class="n">err</span>
+    <span class="kn">from</span> <span class="nn">os.path</span> <span class="k">import</span> <span class="n">exists</span><span class="p">,</span> <span class="n">join</span><span class="p">,</span> <span class="n">expanduser</span><span class="p">,</span> <span class="n">dirname</span>
+    <span class="kn">from</span> <span class="nn">metatab</span> <span class="k">import</span> <span class="n">DEFAULT_METATAB_FILE</span>
+    <span class="kn">from</span> <span class="nn">os</span> <span class="k">import</span> <span class="n">getenv</span>
+    <span class="kn">import</span> <span class="nn">metapack.support</span> <span class="k">as</span> <span class="nn">support_dir</span>
+
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">config</span><span class="p">:</span>
+        <span class="n">config_file</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">config</span>
+    <span class="k">elif</span> <span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;METAPACK_CONFIG&quot;</span><span class="p">):</span>
+        <span class="n">config_file</span> <span class="o">=</span> <span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;METAPACK_DEFAULTS&quot;</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">expanduser</span><span class="p">(</span><span class="s1">&#39;~/.metapack-default.csv&#39;</span><span class="p">):</span>
+        <span class="n">config_file</span> <span class="o">=</span> <span class="n">expanduser</span><span class="p">(</span><span class="s1">&#39;~/.metapack-defaults.csv&#39;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">config_file</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">if</span> <span class="n">config_file</span> <span class="ow">and</span> <span class="n">exists</span><span class="p">(</span><span class="n">config_file</span><span class="p">):</span>
+        <span class="n">prt</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Using defaults file &#39;</span><span class="si">{config_file}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+        <span class="n">config</span> <span class="o">=</span> <span class="n">MetapackDoc</span><span class="p">(</span><span class="n">config_file</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">config</span> <span class="o">=</span> <span class="n">MetapackDoc</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">jupyter</span><span class="p">:</span>
+        <span class="kn">import</span> <span class="nn">tempfile</span>
+
+        <span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">NamedTemporaryFile</span><span class="p">(</span><span class="n">suffix</span><span class="o">=</span><span class="s1">&#39;.ipynb&#39;</span><span class="p">,</span> <span class="n">delete</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span> <span class="k">as</span> <span class="n">fp</span><span class="p">:</span>
+
+            <span class="n">r</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">TEMPLATE_NOTEBOOK</span><span class="p">,</span> <span class="n">allow_redirects</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">r</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
+
+            <span class="n">fp</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">content</span><span class="p">)</span>
+            <span class="n">nb_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">fp</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+
+        <span class="n">doc</span> <span class="o">=</span> <span class="n">MetapackDoc</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">nb_path</span><span class="p">))</span>
+
+    <span class="k">else</span><span class="p">:</span>
+
+        <span class="n">doc</span> <span class="o">=</span> <span class="n">make_metatab_file</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">template</span><span class="p">)</span>
+
+    <span class="n">doc</span><span class="p">[</span><span class="s1">&#39;Root&#39;</span><span class="p">][</span><span class="s1">&#39;Created&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">datetime_now</span><span class="p">()</span>
+
+    <span class="n">origin</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">origin</span> <span class="ow">or</span> <span class="n">config</span><span class="o">.</span><span class="n">get_value</span><span class="p">(</span><span class="s1">&#39;Root.Origin&#39;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">origin</span><span class="p">:</span>
+        <span class="n">err</span><span class="p">(</span><span class="s2">&quot;Must specify a value for origin, either on command line or in defaults file&quot;</span><span class="p">)</span>
+
+    <span class="p">(</span><span class="n">doc</span><span class="p">[</span><span class="s1">&#39;Root&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">find_first</span><span class="p">(</span><span class="s1">&#39;Root.Origin&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">et</span><span class="p">)</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">origin</span>
+    <span class="p">(</span><span class="n">doc</span><span class="p">[</span><span class="s1">&#39;Root&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">find_first</span><span class="p">(</span><span class="s1">&#39;Root.Dataset&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">et</span><span class="p">)</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">dataset</span>
+    <span class="p">(</span><span class="n">doc</span><span class="p">[</span><span class="s1">&#39;Root&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">find_first</span><span class="p">(</span><span class="s1">&#39;Root.Space&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">et</span><span class="p">)</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">space</span> <span class="ow">or</span> <span class="n">config</span><span class="o">.</span><span class="n">get_value</span><span class="p">(</span><span class="s1">&#39;Root.Space&#39;</span><span class="p">)</span>
+    <span class="p">(</span><span class="n">doc</span><span class="p">[</span><span class="s1">&#39;Root&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">find_first</span><span class="p">(</span><span class="s1">&#39;Root.Time&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">et</span><span class="p">)</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">time</span> <span class="ow">or</span> <span class="n">config</span><span class="o">.</span><span class="n">get_value</span><span class="p">(</span><span class="s1">&#39;Root.Time&#39;</span><span class="p">)</span>
+    <span class="p">(</span><span class="n">doc</span><span class="p">[</span><span class="s1">&#39;Root&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">find_first</span><span class="p">(</span><span class="s1">&#39;Root.Grain&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">et</span><span class="p">)</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">grain</span> <span class="ow">or</span> <span class="n">config</span><span class="o">.</span><span class="n">get_value</span><span class="p">(</span><span class="s1">&#39;Root.Grain&#39;</span><span class="p">)</span>
+    <span class="p">(</span><span class="n">doc</span><span class="p">[</span><span class="s1">&#39;Root&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">find_first</span><span class="p">(</span><span class="s1">&#39;Root.Variant&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">et</span><span class="p">)</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">variant</span> <span class="ow">or</span> <span class="n">config</span><span class="o">.</span><span class="n">get_value</span><span class="p">(</span><span class="s1">&#39;Root.Variant&#39;</span><span class="p">)</span>
+    <span class="p">(</span><span class="n">doc</span><span class="p">[</span><span class="s1">&#39;Root&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">find_first</span><span class="p">(</span><span class="s1">&#39;Root.Version&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">et</span><span class="p">)</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">revision</span> <span class="ow">or</span> <span class="n">config</span><span class="o">.</span><span class="n">get_value</span><span class="p">(</span><span class="s1">&#39;Root.Version&#39;</span><span class="p">)</span>
+
+    <span class="c1"># Copy contacts in</span>
+    <span class="k">if</span> <span class="s1">&#39;Contacts&#39;</span> <span class="ow">in</span> <span class="n">config</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;Contacts&#39;</span><span class="p">]:</span>
+            <span class="n">doc</span><span class="p">[</span><span class="s1">&#39;Contacts&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">add_term</span><span class="p">(</span><span class="n">c</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">title</span><span class="p">:</span>
+        <span class="n">doc</span><span class="p">[</span><span class="s1">&#39;Root&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">find_first</span><span class="p">(</span><span class="s1">&#39;Root.Title&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">title</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+
+    <span class="n">nv_name</span> <span class="o">=</span> <span class="n">doc</span><span class="o">.</span><span class="n">as_version</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">example</span><span class="p">:</span>
+        <span class="n">doc</span><span class="p">[</span><span class="s1">&#39;Resources&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">new_term</span><span class="p">(</span><span class="s1">&#39;Root.Datafile&#39;</span><span class="p">,</span>
+                                  <span class="s1">&#39;http://public.source.civicknowledge.com/example.com/sources/random-names.csv&#39;</span><span class="p">,</span>
+                                  <span class="n">name</span><span class="o">=</span><span class="s1">&#39;random_names&#39;</span><span class="p">)</span>
+
+        <span class="n">doc</span><span class="p">[</span><span class="s1">&#39;Documentation&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">new_term</span><span class="p">(</span><span class="s1">&#39;Root.Homepage&#39;</span><span class="p">,</span> <span class="s1">&#39;http://metatab.org&#39;</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s1">&#39;Metatab Home Page&#39;</span><span class="p">)</span>
+
+    <span class="n">doc</span><span class="o">.</span><span class="n">ensure_identifier</span><span class="p">()</span>
+    <span class="n">doc</span><span class="o">.</span><span class="n">update_name</span><span class="p">(</span><span class="n">create_term</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="s1">&#39;jupyter&#39;</span><span class="p">):</span>  <span class="c1"># b/c maybe metatab_jupyter is not installed</span>
+
+        <span class="kn">from</span> <span class="nn">metapack_jupyter.convert</span> <span class="k">import</span> <span class="n">write_metatab_notebook</span>
+        <span class="kn">from</span> <span class="nn">metapack_jupyter.core</span> <span class="k">import</span> <span class="n">edit_notebook</span><span class="p">,</span> <span class="n">set_cell_source</span><span class="p">,</span> <span class="n">get_cell_source</span>
+
+        <span class="n">new_nb_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;</span><span class="si">{nv_name}</span><span class="s1">.ipynb&#39;</span><span class="p">)</span>
+
+        <span class="n">doc</span><span class="p">[</span><span class="s1">&#39;Resources&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">new_term</span><span class="p">(</span><span class="s1">&#39;Root.Datafile&#39;</span><span class="p">,</span> <span class="s1">&#39;./&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">new_nb_path</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;#df&quot;</span><span class="p">,</span>
+                                  <span class="n">name</span><span class="o">=</span><span class="s1">&#39;local_dataframe&#39;</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s1">&#39;Example of using a local Dataframe&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">new_nb_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="n">err</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Directory </span><span class="si">{nb_path}</span><span class="s2"> already exists&quot;</span><span class="p">)</span>
+
+        <span class="n">copyfile</span><span class="p">(</span><span class="n">nb_path</span><span class="p">,</span> <span class="n">new_nb_path</span><span class="p">)</span>
+
+        <span class="n">write_metatab_notebook</span><span class="p">(</span><span class="n">doc</span><span class="p">,</span> <span class="n">new_nb_path</span><span class="p">)</span>
+
+        <span class="k">with</span> <span class="n">edit_notebook</span><span class="p">(</span><span class="n">new_nb_path</span><span class="p">)</span> <span class="k">as</span> <span class="n">nb</span><span class="p">:</span>
+            <span class="n">init</span> <span class="o">=</span> <span class="n">get_cell_source</span><span class="p">(</span><span class="n">nb</span><span class="p">,</span> <span class="s1">&#39;init&#39;</span><span class="p">)</span>
+            <span class="n">init</span> <span class="o">+=</span> <span class="n">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">this_package_name = &#39;{str(new_nb_path.name)}&#39;&quot;</span>
+            <span class="n">set_cell_source</span><span class="p">(</span><span class="n">nb</span><span class="p">,</span> <span class="s1">&#39;init&#39;</span><span class="p">,</span> <span class="n">init</span><span class="p">)</span>
+
+        <span class="n">nb_path</span><span class="o">.</span><span class="n">unlink</span><span class="p">()</span>
+    <span class="k">else</span><span class="p">:</span>
+
+        <span class="n">doc</span><span class="p">[</span><span class="s1">&#39;Documentation&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">new_term</span><span class="p">(</span><span class="s1">&#39;Root.Documentation&#39;</span><span class="p">,</span> <span class="s1">&#39;file:README.md&#39;</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s1">&#39;README&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">exists</span><span class="p">(</span><span class="n">nv_name</span><span class="p">):</span>
+            <span class="n">err</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Directory </span><span class="si">{nv_name}</span><span class="s2"> already exists&quot;</span><span class="p">)</span>
+
+        <span class="n">ensure_dir</span><span class="p">(</span><span class="n">nv_name</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="kc">True</span><span class="p">:</span>  <span class="c1"># args.pylib:</span>
+            <span class="kn">from</span> <span class="nn">metapack.support</span> <span class="k">import</span> <span class="n">pylib</span>
+            <span class="n">pylib_dir</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">nv_name</span><span class="p">,</span> <span class="s1">&#39;pylib&#39;</span><span class="p">)</span>
+            <span class="n">ensure_dir</span><span class="p">(</span><span class="n">pylib_dir</span><span class="p">)</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">pylib_dir</span><span class="p">,</span> <span class="s1">&#39;__init__.py&#39;</span><span class="p">),</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f_out</span><span class="p">,</span> <span class="nb">open</span><span class="p">(</span><span class="n">pylib</span><span class="o">.</span><span class="vm">__file__</span><span class="p">)</span> <span class="k">as</span> <span class="n">f_in</span><span class="p">:</span>
+                <span class="n">f_out</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">f_in</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
+
+            <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">example</span><span class="p">:</span>
+                <span class="n">doc</span><span class="p">[</span><span class="s1">&#39;Resources&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">new_term</span><span class="p">(</span><span class="s1">&#39;Root.Datafile&#39;</span><span class="p">,</span> <span class="s1">&#39;python:pylib#row_generator&#39;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;row_generator&#39;</span><span class="p">)</span>
+
+        <span class="n">prt</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Writing to &#39;</span><span class="si">{nv_name}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+
+        <span class="n">write_doc</span><span class="p">(</span><span class="n">doc</span><span class="p">,</span> <span class="n">join</span><span class="p">(</span><span class="n">nv_name</span><span class="p">,</span> <span class="n">DEFAULT_METATAB_FILE</span><span class="p">))</span>
+
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">dirname</span><span class="p">(</span><span class="n">support_dir</span><span class="o">.</span><span class="vm">__file__</span><span class="p">),</span> <span class="s1">&#39;gitignore&#39;</span><span class="p">))</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">gitignore</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">nv_name</span><span class="p">,</span> <span class="s1">&#39;.gitignore&#39;</span><span class="p">),</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">gitignore</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">title</span><span class="p">:</span>
+            <span class="n">readme</span> <span class="o">=</span> <span class="s1">&#39;# </span><span class="si">{}</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">title</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">readme</span> <span class="o">=</span> <span class="s1">&#39;# </span><span class="si">{}</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">doc</span><span class="o">.</span><span class="n">get_value</span><span class="p">(</span><span class="s1">&#39;Root.Name&#39;</span><span class="p">))</span>
+
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">nv_name</span><span class="p">,</span> <span class="s1">&#39;README.md&#39;</span><span class="p">),</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">readme</span><span class="p">)</span></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../index.html">metapack-build</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../license.html">License</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../authors.html">Authors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../changelog.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/modules.html">Module Reference</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Eric Busboom.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.0.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

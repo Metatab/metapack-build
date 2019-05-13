@@ -1,0 +1,440 @@
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <title>metapack_build.package.s3 &#8212; metapack-build 0.0.2 documentation</title>
+    <link rel="stylesheet" href="../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for metapack_build.package.s3</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Copyright (c) 2017 Civic Knowledge. This file is licensed under the terms of the</span>
+<span class="c1"># MIT License, included in this distribution as LICENSE</span>
+
+<span class="sd">&quot;&quot;&quot; &quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">io</span> <span class="k">import</span> <span class="n">BytesIO</span>
+<span class="kn">from</span> <span class="nn">os</span> <span class="k">import</span> <span class="n">walk</span>
+<span class="kn">from</span> <span class="nn">os.path</span> <span class="k">import</span> <span class="n">getsize</span><span class="p">,</span> <span class="n">join</span>
+
+<span class="kn">import</span> <span class="nn">boto3</span>
+<span class="kn">import</span> <span class="nn">unicodecsv</span> <span class="k">as</span> <span class="nn">csv</span>
+<span class="kn">from</span> <span class="nn">metapack.util</span> <span class="k">import</span> <span class="n">write_csv</span>
+<span class="kn">from</span> <span class="nn">metatab</span> <span class="k">import</span> <span class="n">DEFAULT_METATAB_FILE</span>
+<span class="kn">from</span> <span class="nn">rowgenerators</span> <span class="k">import</span> <span class="n">parse_app_url</span>
+
+<span class="kn">from</span> <span class="nn">.core</span> <span class="k">import</span> <span class="n">PackageBuilder</span>
+
+
+<div class="viewcode-block" id="S3PackageBuilder"><a class="viewcode-back" href="../../../api/metapack_build.package.html#metapack_build.package.s3.S3PackageBuilder">[docs]</a><span class="k">class</span> <span class="nc">S3PackageBuilder</span><span class="p">(</span><span class="n">PackageBuilder</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;A FS package in an S3 bucket &quot;&quot;&quot;</span>
+
+    <span class="n">type_code</span> <span class="o">=</span> <span class="s1">&#39;s3&#39;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">source_ref</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">package_root</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">callback</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">env</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">acl</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">source_ref</span><span class="p">,</span> <span class="n">package_root</span><span class="p">,</span> <span class="n">callback</span><span class="p">,</span> <span class="n">env</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">package_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">package_root</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">package_name</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">cache_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">package_name</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">force</span> <span class="o">=</span> <span class="n">force</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_acl</span> <span class="o">=</span> <span class="n">acl</span> <span class="k">if</span> <span class="n">acl</span> <span class="k">else</span> <span class="s1">&#39;public-read&#39;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">bucket</span> <span class="o">=</span> <span class="n">S3Bucket</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">package_path</span><span class="p">,</span> <span class="n">acl</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_acl</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">files_processed</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">access_url</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="kn">from</span> <span class="nn">metapack</span> <span class="k">import</span> <span class="n">MetapackPackageUrl</span>
+        <span class="k">return</span> <span class="n">MetapackPackageUrl</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bucket</span><span class="o">.</span><span class="n">access_url</span><span class="p">(</span><span class="n">DEFAULT_METATAB_FILE</span><span class="p">),</span>
+                                  <span class="n">downloader</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_source_ref</span><span class="o">.</span><span class="n">downloader</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">private_access_url</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="kn">from</span> <span class="nn">metapack</span> <span class="k">import</span> <span class="n">MetapackPackageUrl</span>
+        <span class="k">return</span> <span class="n">MetapackPackageUrl</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bucket</span><span class="o">.</span><span class="n">access_url</span><span class="p">(</span><span class="n">DEFAULT_METATAB_FILE</span><span class="p">),</span>
+                                  <span class="n">downloader</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_source_ref</span><span class="o">.</span><span class="n">downloader</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">public_access_url</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="kn">from</span> <span class="nn">metapack</span> <span class="k">import</span> <span class="n">MetapackPackageUrl</span>
+
+        <span class="k">return</span> <span class="n">MetapackPackageUrl</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bucket</span><span class="o">.</span><span class="n">public_access_url</span><span class="p">(</span><span class="n">DEFAULT_METATAB_FILE</span><span class="p">),</span>
+                                  <span class="n">downloader</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_source_ref</span><span class="o">.</span><span class="n">downloader</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">signed_url</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;A URL with an access signature or password &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">bucket</span><span class="o">.</span><span class="n">signed_access_url</span><span class="p">(</span><span class="n">DEFAULT_METATAB_FILE</span><span class="p">)</span>
+
+<div class="viewcode-block" id="S3PackageBuilder.exists"><a class="viewcode-back" href="../../../api/metapack_build.package.html#metapack_build.package.s3.S3PackageBuilder.exists">[docs]</a>    <span class="k">def</span> <span class="nf">exists</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">url</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">bucket</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">DEFAULT_METATAB_FILE</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="S3PackageBuilder.save"><a class="viewcode-back" href="../../../api/metapack_build.package.html#metapack_build.package.s3.S3PackageBuilder.save">[docs]</a>    <span class="k">def</span> <span class="nf">save</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_is_ready</span><span class="p">()</span>
+
+        <span class="c1"># Resets the ref so that resource.resolved_url link to the resources as written in S3</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_doc</span><span class="o">.</span><span class="n">_ref</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">access_url</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s1">&#39;metatab.csv&#39;</span><span class="p">)</span>
+
+        <span class="c1"># Copy all of the files from the Filesystem package</span>
+        <span class="k">for</span> <span class="n">root</span><span class="p">,</span> <span class="n">dirs</span><span class="p">,</span> <span class="n">files</span> <span class="ow">in</span> <span class="n">walk</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">source_dir</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">files</span><span class="p">:</span>
+                <span class="n">source</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span>
+                <span class="n">rel</span> <span class="o">=</span> <span class="n">source</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">source_dir</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)</span>
+
+                <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">write_to_s3</span><span class="p">(</span><span class="n">rel</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span>
+
+        <span class="c1"># Re-write the URLS for the datafiles</span>
+        <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">datafiles</span><span class="p">:</span>
+            <span class="n">r</span><span class="o">.</span><span class="n">url</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bucket</span><span class="o">.</span><span class="n">access_url</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">url</span><span class="p">)</span>
+
+        <span class="c1"># Re-write the HTML index file.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_write_html</span><span class="p">()</span>
+
+        <span class="c1"># Rewrite Documentation urls:</span>
+        <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">doc</span><span class="o">.</span><span class="n">find</span><span class="p">([</span><span class="s1">&#39;Root.Documentation&#39;</span><span class="p">,</span> <span class="s1">&#39;Root.Image&#39;</span><span class="p">]):</span>
+
+            <span class="n">url</span> <span class="o">=</span> <span class="n">parse_app_url</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">url</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">url</span><span class="o">.</span><span class="n">proto</span> <span class="o">==</span> <span class="s1">&#39;file&#39;</span><span class="p">:</span>
+                <span class="n">r</span><span class="o">.</span><span class="n">url</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bucket</span><span class="o">.</span><span class="n">access_url</span><span class="p">(</span><span class="n">url</span><span class="o">.</span><span class="n">path</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">access_url</span></div>
+
+<div class="viewcode-block" id="S3PackageBuilder.close"><a class="viewcode-back" href="../../../api/metapack_build.package.html#metapack_build.package.s3.S3PackageBuilder.close">[docs]</a>    <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="S3PackageBuilder.write_to_s3"><a class="viewcode-back" href="../../../api/metapack_build.package.html#metapack_build.package.s3.S3PackageBuilder.write_to_s3">[docs]</a>    <span class="k">def</span> <span class="nf">write_to_s3</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">body</span><span class="p">,</span> <span class="n">reason</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">):</span>
+        <span class="kn">from</span> <span class="nn">metapack.exc</span> <span class="k">import</span> <span class="n">PackageError</span>
+
+        <span class="n">access_url</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bucket</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">body</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">acl</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_acl</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">force</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">bucket</span><span class="o">.</span><span class="n">error</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">PackageError</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bucket</span><span class="o">.</span><span class="n">last_reason</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">bucket</span><span class="o">.</span><span class="n">last_reason</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">files_processed</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">bucket</span><span class="o">.</span><span class="n">last_reason</span><span class="p">,</span> <span class="n">access_url</span><span class="p">,</span> <span class="n">path</span><span class="p">))</span>
+
+        <span class="k">return</span></div>
+
+    <span class="k">def</span> <span class="nf">_write_doc</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+        <span class="n">bio</span> <span class="o">=</span> <span class="n">BytesIO</span><span class="p">()</span>
+        <span class="n">writer</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">writer</span><span class="p">(</span><span class="n">bio</span><span class="p">)</span>
+        <span class="n">writer</span><span class="o">.</span><span class="n">writerows</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">doc</span><span class="o">.</span><span class="n">rows</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">write_to_s3</span><span class="p">(</span><span class="s1">&#39;metadata.csv&#39;</span><span class="p">,</span> <span class="n">bio</span><span class="o">.</span><span class="n">getvalue</span><span class="p">())</span>
+
+    <span class="k">def</span> <span class="nf">_write_html</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+        <span class="n">old_ref</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_doc</span><span class="o">.</span><span class="n">_ref</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_doc</span><span class="o">.</span><span class="n">_ref</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">access_url</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s1">&#39;metatab.csv&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">write_to_s3</span><span class="p">(</span><span class="s1">&#39;index.html&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_doc</span><span class="o">.</span><span class="n">html</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_doc</span><span class="o">.</span><span class="n">_ref</span> <span class="o">=</span> <span class="n">old_ref</span>
+
+    <span class="k">def</span> <span class="nf">_load_resource</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">abs_path</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="kn">from</span> <span class="nn">itertools</span> <span class="k">import</span> <span class="n">islice</span>
+        <span class="n">gen</span> <span class="o">=</span> <span class="n">islice</span><span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="n">headers</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">headers</span>
+
+        <span class="n">r</span><span class="o">.</span><span class="n">url</span> <span class="o">=</span> <span class="s1">&#39;data/&#39;</span> <span class="o">+</span> <span class="n">r</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s1">&#39;.csv&#39;</span>
+
+        <span class="n">bio</span> <span class="o">=</span> <span class="n">BytesIO</span><span class="p">()</span>
+
+        <span class="n">data</span> <span class="o">=</span> <span class="n">write_csv</span><span class="p">(</span><span class="n">bio</span><span class="p">,</span> <span class="n">headers</span><span class="p">,</span> <span class="n">gen</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">prt</span><span class="p">(</span><span class="s2">&quot;Loading data (</span><span class="si">{}</span><span class="s2"> bytes) to &#39;</span><span class="si">{}</span><span class="s2">&#39; &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">),</span> <span class="n">r</span><span class="o">.</span><span class="n">url</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">write_to_s3</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">url</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_load_documentation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">term</span><span class="p">,</span> <span class="n">contents</span><span class="p">,</span> <span class="n">file_name</span><span class="p">):</span>
+
+        <span class="n">term</span><span class="p">[</span><span class="s1">&#39;url&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="s1">&#39;docs/&#39;</span> <span class="o">+</span> <span class="n">file_name</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">wrote_files</span><span class="p">[</span><span class="n">file_name</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">write_to_s3</span><span class="p">(</span><span class="n">term</span><span class="p">[</span><span class="s1">&#39;url&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">value</span><span class="p">,</span> <span class="n">contents</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="set_s3_profile"><a class="viewcode-back" href="../../../api/metapack_build.package.html#metapack_build.package.s3.set_s3_profile">[docs]</a><span class="k">def</span> <span class="nf">set_s3_profile</span><span class="p">(</span><span class="n">profile_name</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Load the credentials for an s3 profile into environmental variables&quot;&quot;&quot;</span>
+    <span class="kn">import</span> <span class="nn">os</span>
+
+    <span class="n">session</span> <span class="o">=</span> <span class="n">boto3</span><span class="o">.</span><span class="n">Session</span><span class="p">(</span><span class="n">profile_name</span><span class="o">=</span><span class="n">profile_name</span><span class="p">)</span>
+
+    <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">&#39;AWS_ACCESS_KEY_ID&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">get_credentials</span><span class="p">()</span><span class="o">.</span><span class="n">access_key</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">&#39;AWS_SECRET_ACCESS_KEY&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">get_credentials</span><span class="p">()</span><span class="o">.</span><span class="n">secret_key</span></div>
+
+
+<div class="viewcode-block" id="S3Bucket"><a class="viewcode-back" href="../../../api/metapack_build.package.html#metapack_build.package.s3.S3Bucket">[docs]</a><span class="k">class</span> <span class="nc">S3Bucket</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="n">acl</span><span class="o">=</span><span class="s1">&#39;public&#39;</span><span class="p">,</span> <span class="n">profile</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="kn">import</span> <span class="nn">socket</span>
+
+        <span class="k">if</span> <span class="n">url</span><span class="o">.</span><span class="n">scheme</span> <span class="o">!=</span> <span class="s1">&#39;s3&#39;</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ReferenceError</span><span class="p">(</span><span class="s2">&quot;Must be an S3 url; got: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">url</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">url</span> <span class="o">=</span> <span class="n">url</span>
+
+        <span class="n">session</span> <span class="o">=</span> <span class="n">boto3</span><span class="o">.</span><span class="n">Session</span><span class="p">(</span><span class="n">profile_name</span><span class="o">=</span><span class="n">profile</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_s3</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">resource</span><span class="p">(</span><span class="s1">&#39;s3&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">acl</span> <span class="o">==</span> <span class="s1">&#39;public&#39;</span><span class="p">:</span>
+            <span class="n">acl</span> <span class="o">=</span> <span class="s1">&#39;public-read&#39;</span>
+
+        <span class="c1"># Reason that the last written file was either written or skipped</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">last_reason</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">error</span> <span class="o">=</span> <span class="kc">False</span>  <span class="c1"># Flag for error condition</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_acl</span> <span class="o">=</span> <span class="n">acl</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_bucket</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_s3</span><span class="o">.</span><span class="n">Bucket</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bucket_name</span><span class="p">)</span>
+
+        <span class="c1"># Check if the bucket name is a resolvable address.</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">socket</span><span class="o">.</span><span class="n">getaddrinfo</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bucket_name</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">dns_bucket</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">except</span> <span class="n">socket</span><span class="o">.</span><span class="n">gaierror</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">dns_bucket</span> <span class="o">=</span> <span class="kc">False</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">prefix</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">url</span><span class="o">.</span><span class="n">path</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">bucket_name</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">url</span><span class="o">.</span><span class="n">netloc</span>
+
+<div class="viewcode-block" id="S3Bucket.access_url"><a class="viewcode-back" href="../../../api/metapack_build.package.html#metapack_build.package.s3.S3Bucket.access_url">[docs]</a>    <span class="k">def</span> <span class="nf">access_url</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">paths</span><span class="p">):</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_acl</span> <span class="o">==</span> <span class="s1">&#39;private&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">private_access_url</span><span class="p">(</span><span class="o">*</span><span class="n">paths</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">public_access_url</span><span class="p">(</span><span class="o">*</span><span class="n">paths</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="S3Bucket.private_access_url"><a class="viewcode-back" href="../../../api/metapack_build.package.html#metapack_build.package.s3.S3Bucket.private_access_url">[docs]</a>    <span class="k">def</span> <span class="nf">private_access_url</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">paths</span><span class="p">):</span>
+
+        <span class="n">key</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">prefix</span><span class="p">,</span> <span class="o">*</span><span class="n">paths</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="s2">&quot;s3://</span><span class="si">{}</span><span class="s2">/</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bucket_name</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="S3Bucket.public_access_url"><a class="viewcode-back" href="../../../api/metapack_build.package.html#metapack_build.package.s3.S3Bucket.public_access_url">[docs]</a>    <span class="k">def</span> <span class="nf">public_access_url</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">paths</span><span class="p">):</span>
+
+        <span class="n">key</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">prefix</span><span class="p">,</span> <span class="o">*</span><span class="n">paths</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)</span>
+
+        <span class="n">s3</span> <span class="o">=</span> <span class="n">boto3</span><span class="o">.</span><span class="n">client</span><span class="p">(</span><span class="s1">&#39;s3&#39;</span><span class="p">)</span>
+
+        <span class="n">url</span> <span class="o">=</span> <span class="n">s3</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">endpoint_url</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;https&#39;</span><span class="p">,</span> <span class="s1">&#39;http&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">dns_bucket</span><span class="p">:</span>
+            <span class="n">url</span> <span class="o">=</span> <span class="n">url</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;/s3.amazonaws.com&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span>  <span class="c1"># Assume bucket has name because it is setup as a CNAME</span>
+
+        <span class="k">return</span> <span class="s1">&#39;</span><span class="si">{}</span><span class="s1">/</span><span class="si">{}</span><span class="s1">/</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">bucket_name</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="S3Bucket.signed_access_url"><a class="viewcode-back" href="../../../api/metapack_build.package.html#metapack_build.package.s3.S3Bucket.signed_access_url">[docs]</a>    <span class="k">def</span> <span class="nf">signed_access_url</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">paths</span><span class="p">):</span>
+
+        <span class="n">key</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">prefix</span><span class="p">,</span> <span class="o">*</span><span class="n">paths</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)</span>
+
+        <span class="n">s3</span> <span class="o">=</span> <span class="n">boto3</span><span class="o">.</span><span class="n">client</span><span class="p">(</span><span class="s1">&#39;s3&#39;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">s3</span><span class="o">.</span><span class="n">generate_presigned_url</span><span class="p">(</span><span class="s1">&#39;get_object&#39;</span><span class="p">,</span> <span class="n">Params</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;Bucket&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">bucket_name</span><span class="p">,</span> <span class="s1">&#39;Key&#39;</span><span class="p">:</span> <span class="n">key</span><span class="p">})</span></div>
+
+<div class="viewcode-block" id="S3Bucket.exists"><a class="viewcode-back" href="../../../api/metapack_build.package.html#metapack_build.package.s3.S3Bucket.exists">[docs]</a>    <span class="k">def</span> <span class="nf">exists</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">paths</span><span class="p">):</span>
+        <span class="kn">import</span> <span class="nn">botocore</span>
+
+        <span class="c1"># index.html is the last file written</span>
+        <span class="n">key</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">prefix</span><span class="p">,</span> <span class="o">*</span><span class="n">paths</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)</span>
+
+        <span class="n">exists</span> <span class="o">=</span> <span class="kc">False</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_bucket</span><span class="o">.</span><span class="n">Object</span><span class="p">(</span><span class="n">key</span><span class="p">)</span><span class="o">.</span><span class="n">load</span><span class="p">()</span>
+        <span class="k">except</span> <span class="n">botocore</span><span class="o">.</span><span class="n">exceptions</span><span class="o">.</span><span class="n">ClientError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">e</span><span class="o">.</span><span class="n">response</span><span class="p">[</span><span class="s1">&#39;Error&#39;</span><span class="p">][</span><span class="s1">&#39;Code&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;404&quot;</span><span class="p">:</span>
+                <span class="n">exists</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">exists</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="k">return</span> <span class="n">exists</span></div>
+
+<div class="viewcode-block" id="S3Bucket.list"><a class="viewcode-back" href="../../../api/metapack_build.package.html#metapack_build.package.s3.S3Bucket.list">[docs]</a>    <span class="k">def</span> <span class="nf">list</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+        <span class="n">s3</span> <span class="o">=</span> <span class="n">boto3</span><span class="o">.</span><span class="n">client</span><span class="p">(</span><span class="s1">&#39;s3&#39;</span><span class="p">)</span>
+
+        <span class="c1"># Create a reusable Paginator</span>
+        <span class="n">paginator</span> <span class="o">=</span> <span class="n">s3</span><span class="o">.</span><span class="n">get_paginator</span><span class="p">(</span><span class="s1">&#39;list_objects&#39;</span><span class="p">)</span>
+
+        <span class="c1"># Create a PageIterator from the Paginator</span>
+        <span class="n">page_iterator</span> <span class="o">=</span> <span class="n">paginator</span><span class="o">.</span><span class="n">paginate</span><span class="p">(</span><span class="n">Bucket</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">bucket_name</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">page</span> <span class="ow">in</span> <span class="n">page_iterator</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">page</span><span class="p">[</span><span class="s1">&#39;Contents&#39;</span><span class="p">]:</span>
+                <span class="k">yield</span> <span class="n">c</span></div>
+
+<div class="viewcode-block" id="S3Bucket.write"><a class="viewcode-back" href="../../../api/metapack_build.package.html#metapack_build.package.s3.S3Bucket.write">[docs]</a>    <span class="k">def</span> <span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">body</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">acl</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="kn">from</span> <span class="nn">botocore.exceptions</span> <span class="k">import</span> <span class="n">ClientError</span>
+        <span class="kn">import</span> <span class="nn">mimetypes</span>
+        <span class="kn">import</span> <span class="nn">hashlib</span>
+
+        <span class="n">acl</span> <span class="o">=</span> <span class="n">acl</span> <span class="k">if</span> <span class="n">acl</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">_acl</span>
+
+        <span class="n">key</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">prefix</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">last_reason</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;wrote&#39;</span><span class="p">,</span> <span class="s1">&#39;Normal write&#39;</span><span class="p">)</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">file_size</span> <span class="o">=</span> <span class="n">getsize</span><span class="p">(</span><span class="n">body</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>  <span class="c1"># Maybe it&#39;s an open file</span>
+        <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+            <span class="c1"># Nope, hope it is the file contents</span>
+            <span class="n">file_size</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">body</span><span class="p">)</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">o</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_bucket</span><span class="o">.</span><span class="n">Object</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+
+            <span class="n">md5</span> <span class="o">=</span> <span class="n">o</span><span class="o">.</span><span class="n">e_tag</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>  <span class="c1"># Rumor is this only works for single-part uplaoaded files</span>
+
+            <span class="k">if</span> <span class="n">o</span><span class="o">.</span><span class="n">content_length</span> <span class="o">==</span> <span class="n">file_size</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">force</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">last_reason</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;wrote&#39;</span><span class="p">,</span> <span class="s2">&quot;File already in bucket, but forcing overwrite&quot;</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">local_md5</span> <span class="o">=</span> <span class="p">(</span><span class="n">hashlib</span><span class="o">.</span><span class="n">md5</span><span class="p">(</span><span class="n">body</span><span class="p">)</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">())</span>
+                    <span class="k">except</span> <span class="ne">TypeError</span><span class="p">:</span>
+                        <span class="n">local_md5</span> <span class="o">=</span> <span class="n">md5</span>
+
+                    <span class="k">if</span> <span class="p">(</span><span class="n">local_md5</span> <span class="o">!=</span> <span class="n">md5</span><span class="p">):</span>
+
+                        <span class="bp">self</span><span class="o">.</span><span class="n">last_reason</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;wrote&#39;</span><span class="p">,</span> <span class="s2">&quot;File already in bucket, but md5 sums differ&quot;</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">last_reason</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;skip&#39;</span><span class="p">,</span> <span class="s2">&quot;File already in bucket; skipping&quot;</span><span class="p">)</span>
+
+                        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">access_url</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">last_reason</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;wrote&#39;</span><span class="p">,</span> <span class="s2">&quot;File already in bucket, but length is different; re-writting&quot;</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="n">ClientError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">int</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">response</span><span class="p">[</span><span class="s1">&#39;Error&#39;</span><span class="p">][</span><span class="s1">&#39;Code&#39;</span><span class="p">])</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">403</span><span class="p">,</span> <span class="mi">405</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">last_reason</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;error&#39;</span><span class="p">,</span> <span class="s2">&quot;S3 Access failed for &#39;</span><span class="si">{}</span><span class="s2">:</span><span class="si">{}</span><span class="s2">&#39;: </span><span class="si">{}</span><span class="se">\n</span><span class="s2">NOTE: With Docker, this error is often &quot;</span>
+                                             <span class="s2">&quot;the result of container clock drift. Check your container clock. &quot;</span>
+                                    <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bucket_name</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">e</span><span class="p">))</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">error</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="k">return</span>
+
+            <span class="k">elif</span> <span class="nb">int</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">response</span><span class="p">[</span><span class="s1">&#39;Error&#39;</span><span class="p">][</span><span class="s1">&#39;Code&#39;</span><span class="p">])</span> <span class="o">!=</span> <span class="mi">404</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">last_reason</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;error&#39;</span><span class="p">,</span> <span class="s2">&quot;S3 Access failed for &#39;</span><span class="si">{}</span><span class="s2">:</span><span class="si">{}</span><span class="s2">&#39;: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bucket_name</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">e</span><span class="p">))</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">error</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="k">return</span>
+
+        <span class="n">ct</span> <span class="o">=</span> <span class="n">mimetypes</span><span class="o">.</span><span class="n">guess_type</span><span class="p">(</span><span class="n">key</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_bucket</span><span class="o">.</span><span class="n">put_object</span><span class="p">(</span><span class="n">Key</span><span class="o">=</span><span class="n">key</span><span class="p">,</span>
+                                    <span class="n">Body</span><span class="o">=</span><span class="n">body</span><span class="p">,</span>
+                                    <span class="n">ACL</span><span class="o">=</span><span class="n">acl</span><span class="p">,</span>
+                                    <span class="n">ContentType</span><span class="o">=</span><span class="n">ct</span> <span class="k">if</span> <span class="n">ct</span> <span class="k">else</span> <span class="s1">&#39;binary/octet-stream&#39;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">last_reason</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;error&#39;</span><span class="p">,</span> <span class="s2">&quot;Failed to write &#39;</span><span class="si">{}</span><span class="s2">&#39; to &#39;</span><span class="si">{}</span><span class="s2">&#39;: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">bucket_name</span><span class="p">,</span> <span class="n">e</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">error</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">access_url</span><span class="p">(</span><span class="n">path</span><span class="p">)</span></div></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../index.html">metapack-build</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../license.html">License</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../authors.html">Authors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../changelog.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/modules.html">Module Reference</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Eric Busboom.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.0.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

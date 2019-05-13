@@ -1,0 +1,498 @@
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <title>Getting Started &#8212; metapack-build 0.0.2 documentation</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="getting-started">
+<h1>Getting Started<a class="headerlink" href="#getting-started" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="install">
+<h2>Install<a class="headerlink" href="#install" title="Permalink to this headline">¶</a></h2>
+<p>Install the Metapack package from PiPy with:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ pip install metapack
+</pre></div>
+</div>
+<p>For development, you’ll probably want the development package, with sub-mdules for related repos:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ git clone --recursive https://github.com/Metatab/metapack-dev.git
+$ <span class="nb">cd</span> metapack-dev
+$ bin/init-develop.sh
+</pre></div>
+</div>
+</div>
+<div class="section" id="creating-packages-with-metapack">
+<h2>Creating Packages with Metapack<a class="headerlink" href="#creating-packages-with-metapack" title="Permalink to this headline">¶</a></h2>
+<p>Metapack data packages consists of metadata and data, linked together in an
+Excel file, Zip File, or as files in a directory. These package files are
+created by the <strong class="command">mp build</strong> program, taking a source package as input.
+A Metapack source package is very similar to a output package: the primary
+difference is that a source package references datasets with URLs to remote
+resources. Building a package loads those resources into the load file. More
+generally, a source package decribes how to run a data processing pipeline, and
+the output package has just the outputs of these data processing steps.</p>
+<p>So, what we’re going to do is create a directory-based source package, then
+build the soruce package to create an Excel File, a Zip File and another
+directory package.</p>
+</div>
+<div class="section" id="creating-a-new-package">
+<h2>Creating a new package<a class="headerlink" href="#creating-a-new-package" title="Permalink to this headline">¶</a></h2>
+<p>To create a new package, use the <strong class="program">mp new</strong> program (<span class="xref std std-ref">mp_new</span>).</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ mp new -o metatab.org -d tutorial -L -E -T <span class="s2">&quot;Quickstart Example Package&quot;</span>
+</pre></div>
+</div>
+<p>This command will create a directory named <code class="file docutils literal notranslate"><span class="pre">metatab.org-tutorial</span></code>,
+which will contain a <code class="file docutils literal notranslate"><span class="pre">metadata.csv</span></code> file, the Metatab-formated metadata
+file for the package.</p>
+<p>The <strong>origin</strong> and <strong>dataset</strong> options are required. These
+options, along with <strong>time</strong>, <strong>space</strong>, <strong>grain</strong>,
+<strong>variant</strong>, and <strong>revision</strong> are used to build the name of the
+data package, which is also used in the name of the directory for the package.
+The origin should usually be a second level internet domain, such as
+‘metatab.org’.</p>
+<p>The <a class="reference internal" href="../cli/new.html#cmdoption-mp-new-e"><code class="xref std std-option docutils literal notranslate"><span class="pre">mp</span> <span class="pre">new</span> <span class="pre">-E</span></code></a> option will generate example data, and the
+<a class="reference internal" href="../cli/new.html#cmdoption-mp-new-l"><code class="xref std std-option docutils literal notranslate"><span class="pre">mp</span> <span class="pre">new</span> <span class="pre">-L</span></code></a> option will create a <code class="file docutils literal notranslate"><span class="pre">pylib</span></code> directory that hold
+some python code for generating rows.</p>
+<p>If you need to change the name of the package later, you can edit the
+identifiying terms in the metadata file. After setting the <code class="docutils literal notranslate"><span class="pre">Dataset</span></code>,
+<code class="docutils literal notranslate"><span class="pre">Origin</span></code>, <code class="docutils literal notranslate"><span class="pre">Version</span></code>, <code class="docutils literal notranslate"><span class="pre">Time</span></code> or <code class="docutils literal notranslate"><span class="pre">Space</span></code> and saving the file, , run
+<code class="docutils literal notranslate"><span class="pre">metapack</span> <span class="pre">-u</span></code> to update <code class="docutils literal notranslate"><span class="pre">Name</span></code>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ <span class="nb">cd</span> metatab.org-tutorial
+$ mp update -n
+Changed Name
+Name is:  metatab.org-tutorial-2018-1
+</pre></div>
+</div>
+<p>Otherwise, you will usually still want to edit the file to set the <cite>Title</cite> and
+<cite>Description</cite> terms.</p>
+</div>
+<div class="section" id="adding-data-references">
+<h2>Adding Data References<a class="headerlink" href="#adding-data-references" title="Permalink to this headline">¶</a></h2>
+<p>Since this is a data package, it is important to have references to data. The
+package we are creating here is a filesystem package, and will usually
+reference the URLs to data on the web. Later, we will generate other packages,
+such as ZIP or Excel files, and the data will be downloaded and included
+directly in the package. We define the paths or URLs to data files with the
+<code class="docutils literal notranslate"><span class="pre">Datafile</span></code> term in the <code class="docutils literal notranslate"><span class="pre">Resources</span></code> section.</p>
+<p>For the <code class="docutils literal notranslate"><span class="pre">Datafile</span></code> term, you can add entries directly, but it is easier to
+use the <strong class="program">mp url</strong> program to add them. <strong class="program">mp url</strong> program will
+inspect the file for you, finding internal files in ZIP files and creating the
+correct URLs for Excel files.</p>
+<p>If you have made changes to the <code class="docutils literal notranslate"><span class="pre">metadata.csv</span></code> file, save it, then run:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ mp url -a  http://public.source.civicknowledge.com/example.com/sources/test_data.zip
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">test_data.zip</span></code> file is a test file with many types of tabular datafiles
+within it. The <strong class="program">mp url</strong> command will download it, open it, find all of
+the metadata files int it, and add URLs to the metatab. If any of the files in
+the zip file are Excel format, it will also create URLs for each of the tabs.</p>
+<p>This file is large and may take awhile. If you need a smaller file, try:
+<a class="reference external" href="http://public.source.civicknowledge.com/example.com/sources/renter_cost.csv">http://public.source.civicknowledge.com/example.com/sources/renter_cost.csv</a></p>
+<p>Now reload the file. The Resource section should have 9 <code class="docutils literal notranslate"><span class="pre">Datafile</span></code> entries,
+all of them with fragments. The fragments will be URL encoded, so are a bit
+hard to read. %2F is a ‘/’ and %3B is a ‘;’. The <strong class="program">mp url</strong> program will
+also add a name, and try to figure out on which row the data starts and which
+lines are for headers.</p>
+<p>Note that the <code class="docutils literal notranslate"><span class="pre">unicode-latin1</span></code> and <code class="docutils literal notranslate"><span class="pre">unicode-utf8</span></code> files do not have values
+for HeaderLines and Startline. This is because the row intuiting process failed
+to categorize the lines, because all of them are mostly strings. In these
+cases, download the file and examine it. For these two files, you can enter ‘0’
+for <code class="docutils literal notranslate"><span class="pre">HeaderLines</span></code> and ‘1’ for <code class="docutils literal notranslate"><span class="pre">StartLine</span></code>, or leave those values empty
+and Metatab will use 0 and 1</p>
+<p>If you enter the <code class="docutils literal notranslate"><span class="pre">Datafile</span></code> terms manually, you should enter the URL for the
+datafile, ( in the cell below “Resources” ) and the <code class="docutils literal notranslate"><span class="pre">Name</span></code> value. If the URL
+to the resource is a zip file or an Excel file, you can use a URL fragment to
+indicate the inner filename. For Excel files, the fragment is either the name
+of the tab in the file, or the number of the tab. ( The first number is 0 ). If
+the resource is a zip file that holds an Excel file, the fragment can have both
+the internal file name and the tab number, separated by a semicolon ‘;’ For
+instance:</p>
+<ul class="simple">
+<li><p><a class="reference external" href="http://public.source.civicknowledge.com/example.com/sources/test_data.zip#simple-example.csv">http://public.source.civicknowledge.com/example.com/sources/test_data.zip#simple-example.csv</a></p></li>
+<li><p><a class="reference external" href="http://example.com/renter_cost_excel07.xlsx#2">http://example.com/renter_cost_excel07.xlsx#2</a></p></li>
+<li><p><a class="reference external" href="http://example.com/test_data.zip#renter_cost_excel07.xlsx;B2">http://example.com/test_data.zip#renter_cost_excel07.xlsx;B2</a></p></li>
+</ul>
+<p>If you don’t specify a tab name for an Excel file, the first will be used.</p>
+<p>There are also URL forms for Google spreadsheet, S3 files and Socrata.</p>
+<p>To test manually added URLs, use the <code class="docutils literal notranslate"><span class="pre">rowgen</span></code> program, which will download
+and cache the URL resource, then try to interpret it as a CSV or Excel file.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ rowgen http://public.source.civicknowledge.com/example.com/sources/test_data.zip#renter_cost_excel07.xlsx
+
+------------------------  ------  ----------  ----------------  ----------------  -----------------
+Renter Costs
+This is a header comment
+
+                                  renter                        owner
+id                        gvid    cost_gt_30  cost_gt_30_cv     cost_gt_30_pct    cost_gt_30_pct_cv
+<span class="m">1</span>.0                       0O0P01  <span class="m">1447</span>.0      <span class="m">13</span>.6176070904818  <span class="m">42</span>.2481751824818  <span class="m">8</span>.27214070699712
+<span class="m">2</span>.0                       0O0P03  <span class="m">5581</span>.0      <span class="m">6</span>.23593207100335  <span class="m">49</span>.280353200883   <span class="m">4</span>.9333693053569
+<span class="m">3</span>.0                       0O0P05  <span class="m">525</span>.0       <span class="m">17</span>.6481586482953  <span class="m">45</span>.2196382428941  <span class="m">13</span>.2887199930555
+<span class="m">4</span>.0                       0O0P07  <span class="m">352</span>.0       <span class="m">28</span>.0619645779719  <span class="m">47</span>.4393530997305  <span class="m">17</span>.3833286873892
+</pre></div>
+</div>
+<p>Or just download the file and look at it. In this case, for both
+<cite>unicode-latin1</cite> and <cite>unicode-utf8</cite> you can see that the headers are on line 0
+and the data starts on line 1 so enter those values into the <cite>metadata.csv</cite>
+file. Setting the <code class="docutils literal notranslate"><span class="pre">StartLine</span></code> and <code class="docutils literal notranslate"><span class="pre">HeaderLines</span></code> values is critical for
+properly generating schemas.</p>
+<p>The URLs used in the resources, and the generators that produce row data from
+the data specified by the URLs are implemented in the <a class="reference external" href="https://github.com/Metatab/rowgenerators">rowgenerators module</a> . Refer to the <a class="reference external" href="http://row-generators.readthedocs.io/en/latest/">rowgenerators
+documentation</a> for more
+details about the URL structure.</p>
+</div>
+<div class="section" id="adding-row-generators">
+<h2>Adding Row Generators<a class="headerlink" href="#adding-row-generators" title="Permalink to this headline">¶</a></h2>
+<p>If you’ve examined the <code class="file docutils literal notranslate"><span class="pre">metadata.csv</span></code> file in the example package,
+you’ll have noticed that one of the <code class="docutils literal notranslate"><span class="pre">Datafile</span></code> terms is not a normal url:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Section</span><span class="p">:</span> <span class="n">Resources</span>
+<span class="n">Datafile</span><span class="p">:</span> <span class="n">python</span><span class="p">:</span><span class="n">pylib</span><span class="c1">#row_generator</span>
+</pre></div>
+</div>
+<p>This reference is for a function, written in Python, that will be called to
+yield row data. The <code class="code docutils literal notranslate"><span class="pre">pylib</span></code> part of the URL is the module name, in this
+case it is the module in the packages <code class="file docutils literal notranslate"><span class="pre">pylib</span></code> subdirectory, and
+<code class="code docutils literal notranslate"><span class="pre">row_generator</span></code> is the function name.</p>
+<p>See <a class="reference internal" href="GeneratingRows.html"><span class="doc">Generating Rows</span></a> for more details about row generating functions and programs.</p>
+</div>
+<div class="section" id="building-packages">
+<h2>Building Packages<a class="headerlink" href="#building-packages" title="Permalink to this headline">¶</a></h2>
+<p>To build data packages from a source package, use the <strong class="program">mp build</strong>
+program.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ mp build <span class="c1"># From within the soruce package.</span>
+</pre></div>
+</div>
+<p>If the current workking directory is not inside the soruce package, you can
+also reference it explictly, such as with our exmaple package:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ mp build metatab.org-tutorial
+</pre></div>
+</div>
+<p>Before the build starts, Metapack will ensure that all of the <code class="docutils literal notranslate"><span class="pre">Datafile</span></code>
+terms have associated schemas, and try to autogenerate any that do not. You can
+also trigger this process manually with <a class="reference internal" href="../cli/update.html#cmdoption-mp-update-s"><code class="xref std std-option docutils literal notranslate"><span class="pre">mp</span> <span class="pre">update</span> <span class="pre">-s</span></code></a>. You will want
+to run the schema update manually if you want to add column descriptions to the
+autogenerated schema, or otherwise alter the schema.</p>
+<p>By default, <strong class="program">mp build</strong> will generate a Filesystem package, which is a
+directory like the source package, but with all of the referenced datasets
+localized to a <code class="file docutils literal notranslate"><span class="pre">data</span></code> directory, and with some additional generated
+files. The build packages will be located inside the source package in the
+<code class="file docutils literal notranslate"><span class="pre">_packages</span></code> directory. Building the example package will result in the
+built package at <code class="file docutils literal notranslate"><span class="pre">_packages/metatab.org-tutorial-1</span></code>. This package
+contains:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>├── README.md
+├── data
+│   ├── random-names.csv
+│   ├── random_names.csv
+│   ├── renter_cost-2.csv
+│   ├── renter_cost.csv
+│   ├── renter_cost_excel07.csv
+│   ├── renter_cost_excel97.csv
+│   ├── row_generator.csv
+│   ├── simple-example-altnames.csv
+│   ├── simple-example.csv
+│   ├── unicode-latin1.csv
+│   └── unicode-utf8.csv
+├── datapackage.json
+├── docs
+├── index.html
+└── metadata.csv
+</pre></div>
+</div>
+<p>The generated files include:</p>
+<ul class="simple">
+<li><p><code class="file docutils literal notranslate"><span class="pre">datapackage.json</span></code>. A <a class="reference external" href="http://frictionlessdata.io/docs/data-package/">Frictionless Data Package</a> version of the metadata</p></li>
+<li><p><code class="file docutils literal notranslate"><span class="pre">index.html</span></code>. A data package overview and file list.</p></li>
+<li><p><code class="file docutils literal notranslate"><span class="pre">data</span></code>. A directory holding CSV versions of all of the resources.</p></li>
+<li><p><code class="file docutils literal notranslate"><span class="pre">metadata.csv</span></code>. An updates Metatab file with references to the local data sets and the date and time the package was created.</p></li>
+</ul>
+<p>You can also generate other package formats, including CSV, Excel and Zip. The
+Zip file format is the same as the Filesystem directory, but is zipped. The
+Excel format has only the metadata and data files ( no <code class="file docutils literal notranslate"><span class="pre">index.html</span></code> or
+other documentation ) but is a convenient single file. The CSV file just
+references the file locations of the Filesystem package, and is primarily used
+when the filesystem package is stored on the web.</p>
+<p>To build all of the other file packages:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ mp build -cez <span class="c1"># -f is optional; the FS package is always built.</span>
+</pre></div>
+</div>
+<p>If you change the metadata and try to bulid again, <strong class="program">mp buld</strong> will see
+that the package already exists and will not build it. You can force it to
+rebuild with the <code class="xref std std-option docutils literal notranslate"><span class="pre">mp</span> <span class="pre">build</span> <span class="pre">-F</span></code> option, but if you’ve updated the
+metadata or the data, rather than made an error, you should increment the
+version number in the <cite>Root.Version</cite> term and build again.</p>
+</div>
+<div class="section" id="referencing-metatab-files">
+<h2>Referencing Metatab Files<a class="headerlink" href="#referencing-metatab-files" title="Permalink to this headline">¶</a></h2>
+<p>Now that some packages are built, it is a good time to mention how Metapack
+programs refer to packages. Nearly all of the programs take an optional
+<strong>metatabfile</strong> argument. This argument can be:</p>
+<ul class="simple">
+<li><p>Empty. It will default to <code class="file docutils literal notranslate"><span class="pre">metadata.csv</span></code> in the current directory</p></li>
+<li><p>A path to a directory, which will be assumed to be a filesystem package with a <code class="file docutils literal notranslate"><span class="pre">metadata.csv</span></code> file inside it.</p></li>
+<li><p>A path to a file, which will be guessed, by the extension, to be a ZIP, Excel or CSV package.</p></li>
+</ul>
+<p>For instance, from the directory containing the example source package, all of
+the following commands will return the fully-versioned package name,
+“metatab.org-tutorial-1”</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ mp info metatab.org-tutorial/
+$ mp info metatab.org-tutorial/metadata.csv
+$ mp info metatab.org-tutorial/_packages/metatab.org-tutorial-1
+$ mp info metatab.org-tutorial/_packages/metatab.org-tutorial-1.csv
+$ mp info metatab.org-tutorial/_packages/metatab.org-tutorial-1.xlsx
+$ mp info metatab.org-tutorial/_packages/metatab.org-tutorial-1.zip
+</pre></div>
+</div>
+<p>As we will see in the next section ( and as you saw when adding URLs to the
+package ) a package URL can also have a fragment, which is a string that starts
+with ‘#’, appended to the URL. These are used to identify a resource within the
+package.</p>
+</div>
+<div class="section" id="examining-packages">
+<h2>Examining Packages<a class="headerlink" href="#examining-packages" title="Permalink to this headline">¶</a></h2>
+<p>There are a few programs you can use to examine packages and view their
+resources. The most important is <strong class="program">mp run</strong>. The <strong class="program">mp run</strong>
+command will run resources, generating the tabular data in a variety of
+formats. This is valuable when you are creating a new soruce package, or when
+you want to view the contents of a built package.</p>
+<p>For instance, when you are working on a source package, <strong class="program">mp run</strong> lets
+you see the tabuar data to test configurations. With no arguments, the program
+will list out the resources in the package.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ <span class="nb">cd</span> metatab.org-tutorial
+$ mp run
+
+Type      Name                     Url
+--------  -----------------------  ---------------------------------------------------------------------
+Resource  random_names             h.../random-names.csv
+Resource  row_generator            python:pylib#row_generator
+Resource  random-names             ...random-names.csv<span class="p">&amp;</span><span class="nv">encoding</span><span class="o">=</span>ascii
+Resource  renter_cost              ...renter_cost.csv<span class="p">&amp;</span><span class="nv">encoding</span><span class="o">=</span>ascii
+Resource  simple-example-altnames  ...simple-example-altnames.csv<span class="p">&amp;</span><span class="nv">encoding</span><span class="o">=</span>ascii
+Resource  simple-example           ...simple-example.csv<span class="p">&amp;</span><span class="nv">encoding</span><span class="o">=</span>ascii
+Resource  unicode-latin1           ...unicode-latin1.csv<span class="p">&amp;</span><span class="nv">encoding</span><span class="o">=</span>latin1
+Resource  unicode-utf8             ...unicode-utf8.csv<span class="p">&amp;</span><span class="nv">encoding</span><span class="o">=</span>utf8
+Resource  renter_cost_excel07      ...renter_cost_excel07.xlsx<span class="p">;</span>Sheet1<span class="p">&amp;</span><span class="nv">encoding</span><span class="o">=</span>ascii
+Resource  renter_cost_excel97      ...renter_cost_excel97.xls<span class="p">;</span>Sheet1<span class="p">&amp;</span><span class="nv">encoding</span><span class="o">=</span>ascii
+Resource  renter_cost-2            ...renter_cost.tsv<span class="p">&amp;</span><span class="nv">encoding</span><span class="o">=</span>ascii
+</pre></div>
+</div>
+<p>To run one of thes resources, you add it to the URL of the package as a fragment, appending a ‘#’ and then the resorurce name. If the package is the local directory, the URL is empty, but the shell will interpret the ‘3’ as a comment, so you’ll need to escape it. So, to show the random names in the current source package:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ mp run <span class="se">\#</span>random_names
+</pre></div>
+</div>
+<p>To show the same resource in one of the buld packages:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ mp run _packages/metatab.org-tutorial-1.zip#random_names
+</pre></div>
+</div>
+<p>Having the CSV dumped to the terminal isn’t very informative for large files,
+so there are some options that are better suited for development. The
+<code class="xref std std-option docutils literal notranslate"><span class="pre">mp</span> <span class="pre">run</span> <span class="pre">-T</span></code> will produce a pretty table of the first 20 rows:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ mp run -T <span class="se">\#</span>random_names
+┌──────────────────┬───────────────┐
+│ name             │ size          │
+├──────────────────┼───────────────┤
+│ Gabriel Rowland  │ <span class="m">54</span>.9378140631 │
+├──────────────────┼───────────────┤
+│ Jerry Gay        │ <span class="m">50</span>.3511258436 │
+├──────────────────┼───────────────┤
+│ Tucker Good      │ <span class="m">48</span>.6469162116 │
+├──────────────────┼───────────────┤
+│ Noah Fowlers     │ <span class="m">49</span>.0099728493 │
+...
+</pre></div>
+</div>
+<p>This view is useful for viewing the rows, but it will truncate columns to the width of the terminal, so if you want to review all of the columns, you can “pivot” the table, transposing rows into columns.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ mp run -T -p <span class="se">\#</span>renter_cost_excel07
+┌─────────────────────────┬──────────────────┬──────────────────┐
+│ Column Name             │ Row <span class="m">1</span>            │ Row <span class="m">2</span>            │
+├─────────────────────────┼──────────────────┼──────────────────┤
+│ id                      │ <span class="m">1</span>                │ <span class="m">2</span>                │
+├─────────────────────────┼──────────────────┼──────────────────┤
+│ gvid                    │ 0O0P01           │ 0O0P03           │
+├─────────────────────────┼──────────────────┼──────────────────┤
+│ renter_cost_gt_30       │ <span class="m">1447</span>             │ <span class="m">5581</span>             │
+├─────────────────────────┼──────────────────┼──────────────────┤
+│ renter_cost_gt_30_cv    │ <span class="m">13</span>.6176070904818 │ <span class="m">6</span>.23593207100335 │
+├─────────────────────────┼──────────────────┼──────────────────┤
+│ owner_cost_gt_30_pct    │ <span class="m">42</span>.2481751824818 │ <span class="m">49</span>.280353200883  │
+├─────────────────────────┼──────────────────┼──────────────────┤
+│ owner_cost_gt_30_pct_cv │ <span class="m">8</span>.27214070699712 │ <span class="m">4</span>.9333693053569  │
+└─────────────────────────┴──────────────────┴──────────────────┘
+</pre></div>
+</div>
+<p>This view will show as many rows ( which are now columns ) as the terminal
+width can handle, so you may want to restrict the width of the columns with the
+<code class="xref std std-option docutils literal notranslate"><span class="pre">mp</span> <span class="pre">run</span> <span class="pre">-R</span></code> option.</p>
+<p>Another useful option for analysis is the sample option <code class="xref std std-option docutils literal notranslate"><span class="pre">mp</span> <span class="pre">run</span> <span class="pre">-S</span></code>,
+which will run the resource and collect the most common values for a single
+column:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ mp run <span class="se">\#</span>random_names  -S name
+Value              Count
+---------------  -------
+Gabriel Rowland        <span class="m">1</span>
+Jerry Gay              <span class="m">1</span>
+Tucker Good            <span class="m">1</span>
+Noah Fowlers           <span class="m">1</span>
+Chase Mcmillan         <span class="m">1</span>
+Brody Grimes           <span class="m">1</span>
+Dylan Ferguson         <span class="m">1</span>
+Hashim Franco          <span class="m">1</span>
+Hakeem Bond            <span class="m">1</span>
+Fulton Jordan          <span class="m">1</span>
+</pre></div>
+</div>
+<p>The <strong class="program">mp info</strong> command has some use ful options for examining packages. In particular, <code class="xref std std-option docutils literal notranslate"><span class="pre">mp</span> <span class="pre">info</span> <span class="pre">-n</span></code> displays the name of the package, and <code class="xref std std-option docutils literal notranslate"><span class="pre">mp</span> <span class="pre">info</span> <span class="pre">-s</span></code> displays the schema of a resource:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ mp info -s <span class="se">\#</span>random_names
+Name    AltName    DataType    Description
+------  ---------  ----------  -------------
+Name    name       string
+Size    size       number
+</pre></div>
+</div>
+<div class="section" id="using-a-package">
+<h3>Using a Package<a class="headerlink" href="#using-a-package" title="Permalink to this headline">¶</a></h3>
+<p>At this point, the built packages are functionally complete, and you can check
+that the packages are usable. Well work with the <code class="file docutils literal notranslate"><span class="pre">metatab.org-tutorial-1.zip</span></code> package in the <code class="file docutils literal notranslate"><span class="pre">_package</span></code> subdirectory of the source package. First, list the resources with :</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ mp info -r metatab.org-tutorial-1.zip
+Type      Name                     Url
+--------  -----------------------  --------------------------------
+Resource  random_names             data/random_names.csv
+Resource  row_generator            data/row_generator.csv
+Resource  random-names             data/random-names.csv
+Resource  renter_cost              data/renter_cost.csv
+Resource  simple-example-altnames  data/simple-example-altnames.csv
+Resource  simple-example           data/simple-example.csv
+Resource  unicode-latin1           data/unicode-latin1.csv
+Resource  unicode-utf8             data/unicode-utf8.csv
+Resource  renter_cost_excel07      data/renter_cost_excel07.csv
+Resource  renter_cost_excel97      data/renter_cost_excel97.csv
+Resource  renter_cost-2            data/renter_cost-2.csv
+</pre></div>
+</div>
+<p>You can dump one of the resources as a CSV by running the same command with the
+resource name as a fragment to the name of the metatab file:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ mp run metatab.org-tutorial-1.zip#simple-example &gt; /tmp/simple-example.csv
+</pre></div>
+</div>
+<p>You can also read the resources from a Python program, with an easy way to
+convert a resource to a Pandas DataFrame.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">metapack</span>
+
+<span class="n">doc</span> <span class="o">=</span> <span class="n">metapack</span><span class="o">.</span><span class="n">open_package</span><span class="p">(</span><span class="s1">&#39;metatab.org-tutorial-1.zip&#39;</span><span class="p">)</span>
+
+<span class="k">print</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">doc</span><span class="p">))</span>
+
+<span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">doc</span><span class="o">.</span><span class="n">resources</span><span class="p">():</span>
+    <span class="k">print</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">r</span><span class="o">.</span><span class="n">url</span><span class="p">)</span>
+
+<span class="n">r</span> <span class="o">=</span> <span class="n">doc</span><span class="o">.</span><span class="n">resource</span><span class="p">(</span><span class="s1">&#39;renter_cost&#39;</span><span class="p">)</span>
+
+<span class="c1"># Dump the row</span>
+<span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">r</span><span class="p">:</span>
+    <span class="k">print</span><span class="p">(</span><span class="n">row</span><span class="p">)</span>
+
+
+<span class="c1"># Or, turn it into a pandas dataframe</span>
+<span class="c1"># ( After installing pandas )</span>
+
+<span class="n">df</span> <span class="o">=</span> <span class="n">doc</span><span class="o">.</span><span class="n">resource</span><span class="p">(</span><span class="s1">&#39;renter_cost&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">dataframe</span><span class="p">()</span>
+
+<span class="k">print</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">head</span><span class="p">())</span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">metapack-build</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../license.html">License</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../authors.html">Authors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../changelog.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/modules.html">Module Reference</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Eric Busboom.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.0.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/build/GettingStarted.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

@@ -1,0 +1,30 @@
+metapack\_build package
+=======================
+
+Subpackages
+-----------
+
+.. toctree::
+
+    metapack_build.cli
+    metapack_build.package
+
+Submodules
+----------
+
+metapack\_build.build module
+----------------------------
+
+.. automodule:: metapack_build.build
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+
+Module contents
+---------------
+
+.. automodule:: metapack_build
+    :members:
+    :undoc-members:
+    :show-inheritance:

@@ -1,0 +1,279 @@
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <title>Publishing Packages &#8212; metapack-build 0.0.2 documentation</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="publishing-packages">
+<h1>Publishing Packages<a class="headerlink" href="#publishing-packages" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="publishing-to-s3">
+<h2>Publishing to S3<a class="headerlink" href="#publishing-to-s3" title="Permalink to this headline">¶</a></h2>
+<p>To publish packages to Amazon S3, build the package, then run the <strong class="program">mp
+s3</strong> program (<span class="xref std std-ref">mp_s3</span>). When run in a source package directory <strong class="program">mp
+s3</strong> program will write to S3 all of the current built packages.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ mp build -fz
+$ mp s3 -s library.metatab.org
+</pre></div>
+</div>
+<p>The <strong class="program">mp s3</strong> program uses boto3, so refer to the <a class="reference external" href="http://boto3.readthedocs.io/en/latest/guide/configuration.html">boto3 credentials
+documentation</a> for
+instructions on how to set your S3 access key and secret. The shell example
+above assumes that the <code class="docutils literal notranslate"><span class="pre">AWS_ACCESS_KEY_ID</span></code> and <code class="docutils literal notranslate"><span class="pre">AWS_SECRET_ACCESS_KEY</span></code> have
+been set.</p>
+<p>One important side effect of the <strong class="program">mp s3</strong> program is that it
+will add <code class="docutils literal notranslate"><span class="pre">Distribution</span></code> terms to the main <code class="docutils literal notranslate"><span class="pre">metadata.csv</span></code> file before
+creating the packages, so all the packages that the program syncs will include
+references to the S3 location of all packages. For instance, the example
+invocation above will add these <code class="docutils literal notranslate"><span class="pre">Distribution</span></code> terms:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Distribution</span><span class="p">:</span> <span class="n">http</span><span class="p">:</span><span class="o">//</span><span class="n">library</span><span class="o">.</span><span class="n">metatab</span><span class="o">.</span><span class="n">org</span><span class="o">/</span><span class="n">simple_example</span><span class="o">-</span><span class="mi">2017</span><span class="o">-</span><span class="n">us</span><span class="o">-</span><span class="mf">1.</span><span class="n">xls</span>
+<span class="n">Distribution</span><span class="p">:</span> <span class="n">http</span><span class="p">:</span><span class="o">//</span><span class="n">library</span><span class="o">.</span><span class="n">metatab</span><span class="o">.</span><span class="n">org</span><span class="o">/</span><span class="n">simple_example</span><span class="o">-</span><span class="mi">2017</span><span class="o">-</span><span class="n">us</span><span class="o">-</span><span class="mf">1.</span><span class="n">zip</span>
+<span class="n">Distribution</span><span class="p">:</span> <span class="n">http</span><span class="p">:</span><span class="o">//</span><span class="n">library</span><span class="o">.</span><span class="n">metatab</span><span class="o">.</span><span class="n">org</span><span class="o">/</span><span class="n">simple_example</span><span class="o">-</span><span class="mi">2017</span><span class="o">-</span><span class="n">us</span><span class="o">-</span><span class="mi">1</span><span class="o">/</span><span class="n">metadata</span><span class="o">.</span><span class="n">csv</span>
+</pre></div>
+</div>
+<p>These <code class="docutils literal notranslate"><span class="pre">Distribution</span></code> terms are valuable documentation, but they are also
+required for the <code class="docutils literal notranslate"><span class="pre">metakan</span></code> program to create entries for the package in CKAN.</p>
+</div>
+<div class="section" id="adding-packages-to-ckan">
+<h2>Adding Packages to CKAN<a class="headerlink" href="#adding-packages-to-ckan" title="Permalink to this headline">¶</a></h2>
+<p>The <strong class="program">mp ckan</strong> program reads a Metatab file, creates a dataset in CKAN, and
+adds resources to the CKAN entry based on the <code class="docutils literal notranslate"><span class="pre">Distribution</span></code> terms in the
+Metatab data. For instance, with a localhost CKAN server, and the metadata file
+from the “Publishing Packages” section example:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ mp ckan  --ckan http://localhost:32768/ --api f1f45...e9a9
+</pre></div>
+</div>
+<p>This command would create a CKAN dataset with the metadata in the
+<code class="docutils literal notranslate"><span class="pre">metadata.csv</span></code> file in the current directory, reading the <code class="docutils literal notranslate"><span class="pre">Distribution</span></code>
+terms. It would add resources for <code class="docutils literal notranslate"><span class="pre">simple_example-2017-us-1.xlsx</span></code> and
+<code class="docutils literal notranslate"><span class="pre">simple_example-2017-us-1.zip.</span></code> For the
+<code class="docutils literal notranslate"><span class="pre">simple_example-2017-us-1/metadata.csv</span></code> entry, it would read the remote
+<code class="docutils literal notranslate"><span class="pre">metadata.csv</span></code> file, resolve the resource URLs, and create a resource entry
+in CKAN for the <code class="docutils literal notranslate"><span class="pre">metadata.csv</span></code> file and all of the resources referenced in
+the remote <code class="docutils literal notranslate"><span class="pre">metadata.csv</span></code> file.</p>
+<p>Note that because part of the information in the CKAN dataset comes from the
+file <code class="docutils literal notranslate"><span class="pre">metadata.csv</span></code> file and part of the resources are discovered from the
+remote file, there is a substantial possibility for these files to become
+unsynchronized. For this reason, it is important to run the <strong class="program">mp s3</strong>
+program to create <code class="docutils literal notranslate"><span class="pre">Distribution</span></code> terms before running the <strong class="program">mp ckan</strong> program .</p>
+<p>For an example of a CKAN entry generated by <code class="docutils literal notranslate"><span class="pre">metakan</span></code>, see
+<a class="reference external" href="http://data.sandiegodata.org/dataset/fns-usda-gov-f2s_census-2015-2">http://data.sandiegodata.org/dataset/fns-usda-gov-f2s_census-2015-2</a></p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Old stuff below!</p>
+</div>
+</div>
+<div class="section" id="adding-packages-to-data-world">
+<h2>Adding Packages to Data.World<a class="headerlink" href="#adding-packages-to-data-world" title="Permalink to this headline">¶</a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">metaworld</span></code> program will publish the package to <a class="reference external" href="http://data.world">Data.World</a>. Only Excel and CSV packages will be published, because
+ZIP packages will be disaggregated, conflicting with CSV packages. The program
+is a bit buggy, and when creating a new package, the server may return a 500
+error. If it does, just re-run the program.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">metaworld</span></code> program takes no options. To use it, you must install the
+<a class="reference external" href="https://github.com/datadotworld/data.world-py">datadotworld python package</a>
+and configure it, which will store your username and password.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ metaworld
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="private-datasets">
+<h1>Private Datasets<a class="headerlink" href="#private-datasets" title="Permalink to this headline">¶</a></h1>
+<p>Datasets that should be protected from unauthorized access can be written to S3 with a private ACL and access using S3 credentials. To use private datasets:</p>
+<ul class="simple">
+<li><p>Use the <strong>metaaws</strong> program to setup an S3 bucket with a policy and users</p></li>
+<li><p>Add a <code class="docutils literal notranslate"><span class="pre">Root.Access</span></code> term to the dataset’s metatab document.</p></li>
+<li><p>Syncronize the dataset to s3 with <strong>metasync</strong></p></li>
+<li><p>Setup credentials for an S3 user</p></li>
+<li><p>Access the dataset using an S3 url.</p></li>
+</ul>
+<div class="section" id="setup-the-s3-bucket">
+<h2>Setup The S3 Bucket<a class="headerlink" href="#setup-the-s3-bucket" title="Permalink to this headline">¶</a></h2>
+<p>Suppose we want to store datasets in a bucket <code class="docutils literal notranslate"><span class="pre">bucket.example.com</span></code>. After creating the bucket, initialize it with subdirectories and policies with the <strong>metaaws</strong>  program.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ metaaws init-bucket bucket.example.com
+</pre></div>
+</div>
+</div>
+<div class="section" id="configure-and-sync-a-dataset">
+<h2>Configure and Sync a Dataset<a class="headerlink" href="#configure-and-sync-a-dataset" title="Permalink to this headline">¶</a></h2>
+<p>To make a dataset private,  add a <code class="docutils literal notranslate"><span class="pre">Root.Access</span></code> term to the <code class="docutils literal notranslate"><span class="pre">Root</span></code> section, with  a value of <code class="docutils literal notranslate"><span class="pre">private</span></code></p>
+</div>
+<div class="section" id="create-s3-users">
+<h2>Create S3 Users<a class="headerlink" href="#create-s3-users" title="Permalink to this headline">¶</a></h2>
+<p>Use the <strong>metaaws</strong>  program to create users and add permissions to the bucket. First, initialize a bucket with the apprpriate policies:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ metaaws init-bucket bucket.example.com
+</pre></div>
+</div>
+<p>Then, create a new user.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ metaaws new-user foobar
+Created user : foobar
+arn          : arn:aws:iam::095555823111:user/metatab/foobar
+Access Key   : AKIAJXMFAP3X5TRYYQ5Q
+Secret Key   : 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
+</pre></div>
+</div>
+<dl class="simple">
+<dt>The secret key and access key should be given to the user, to set up as according to the next</dt><dd><p>section.</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="setup-s3-credentials">
+<h2>Setup S3 Credentials<a class="headerlink" href="#setup-s3-credentials" title="Permalink to this headline">¶</a></h2>
+<p>The access and secret keys should be stored in a boto configuration file, such as <code class="docutils literal notranslate"><span class="pre">~/.aws/credentials</span></code>. See
+the <a class="reference external" href="http://boto3.readthedocs.io/en/latest/guide/configuration.html">boto3 configuration documentation</a> for details. Here is an example of a <code class="docutils literal notranslate"><span class="pre">credentials</span></code> file:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">default</span><span class="p">]</span>
+<span class="n">aws_access_key_id</span> <span class="o">=</span> <span class="n">AKIAJXMFAP3X5TRYYQ5Q</span>
+<span class="n">aws_secret_access_key</span> <span class="o">=</span> <span class="n">b81zw4LRDKVILzrZbS0B8KMn88xbY9BEEnwzKrz2</span>
+</pre></div>
+</div>
+<p>If you have multiple credentials, you can put them in different sections by changing <code class="docutils literal notranslate"><span class="pre">[default]</span></code> to the name of another profile. For instance, here is a credentials file with a default and alternate profile:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">default</span><span class="p">]</span>
+<span class="n">aws_access_key_id</span> <span class="o">=</span> <span class="n">AKIAJXMFAP3X5TRYYQ5Q</span>
+<span class="n">aws_secret_access_key</span> <span class="o">=</span> <span class="n">b81zw4LRDKVILzrZbS0B8KMn88xbY9BEEnwzKrz2</span>
+<span class="p">[</span><span class="n">fooprofile</span><span class="p">]</span>
+<span class="n">aws_access_key_id</span> <span class="o">=</span> <span class="n">AKIAX5TRYYQ5QJXMFAP3</span>
+<span class="n">aws_secret_access_key</span> <span class="o">=</span> <span class="n">EEnwzKrz2KVILzrZb81zw4LRDbY9BbS0B8KMn88x</span>
+</pre></div>
+</div>
+<p>To use the alternate credentials with the <code class="docutils literal notranslate"><span class="pre">metasync</span></code> program, use the <code class="docutils literal notranslate"><span class="pre">-p</span></code> option:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ metasync -p fooprofile -S library.metatab.org
+</pre></div>
+</div>
+<p>To use the alternate credentials with the <code class="docutils literal notranslate"><span class="pre">open_package()</span></code> function, you will need to set them in the shell before you run any programs. The <code class="docutils literal notranslate"><span class="pre">metasync</span> <span class="pre">-C</span></code> program will display the credentials in a form that can be shell eval’d, and the <code class="docutils literal notranslate"><span class="pre">-p</span></code> option can select an alternate profile.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ metasync -C -p fooprofile
+<span class="nb">export</span> <span class="nv">AWS_ACCESS_KEY_ID</span><span class="o">=</span>AKIAX5TRYYQ5QJXMFAP3
+<span class="nb">export</span> <span class="nv">AWS_SECRET_ACCESS_KEY</span><span class="o">=</span>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
+<span class="c1"># Run  &#39;eval $(metasync -C -p fooprofile )&#39; to configure credentials in a shell</span>
+</pre></div>
+</div>
+<p>The last line of the output shows the command to run to set the credentials in the shell:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ <span class="nb">eval</span> <span class="k">$(</span>metasync -C -p fooprofile <span class="k">)</span>
+</pre></div>
+</div>
+<p>Setting credentials in the shell is only required if you access the private dataset via <code class="docutils literal notranslate"><span class="pre">open_package()</span></code> although it should also work when using the <code class="docutils literal notranslate"><span class="pre">metasync</span></code> and <code class="docutils literal notranslate"><span class="pre">metapack</span></code> program.</p>
+</div>
+<div class="section" id="using-private-files">
+<h2>Using Private Files<a class="headerlink" href="#using-private-files" title="Permalink to this headline">¶</a></h2>
+<p>Private files can’t be easily downloaded using a web browser, but there are a few other ways to fetch them.</p>
+<ul class="simple">
+<li><p>Use an S3 client, such as CyberDuck, S3 Browser, CloudBerry or S3 Tools.</p></li>
+<li><p>Use the <code class="docutils literal notranslate"><span class="pre">metapack</span></code> program to dump a CSV file.</p></li>
+</ul>
+<p>To use the matpack program, first list the resources in the remote package:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ metapack -r s3://library.civicknowledge.com/private/carr/civicknowledge.com-rcfe_health-1.csv
+seniors s3://library.civicknowledge.com/private/carr/civicknowledge.com-rcfe_health-1/data/seniors.csv
+rcfe_tract s3://library.civicknowledge.com/private/carr/civicknowledge.com-rcfe_health-1/data/rcfe_tract.csv
+rcfe_sra s3://library.civicknowledge.com/private/carr/civicknowledge.com-rcfe_health-1/data/rcfe_sra.csv
+rcfe_seniors_tract s3://library.civicknowledge.com/private/carr/civicknowledge.com-rcfe_health-1/data/rcfe_seniors_tract.csv
+</pre></div>
+</div>
+<p>Then, run the same command again, but appending a fragment to the url, and redirecting to a csv file. For instance, for the ‘seniors’ file, append <code class="docutils literal notranslate"><span class="pre">#seniors</span></code> to the url:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ metapack -r s3://.../civicknowledge.com-rcfe_health-1.csv#seniors &gt; seniors.csv
+</pre></div>
+</div>
+<p>You can also fetch the entire data package, downloading all of the data files,
+by creating a local file system, zip or excel package. The easiest to use is
+the Filesystem package, created with <code class="docutils literal notranslate"><span class="pre">metapack</span> <span class="pre">-f</span></code></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ metapack -f s3://.../civicknowledge.com-rcfe_health-1.csv
+</pre></div>
+</div>
+<p>The command will create a complete data package with unpacked CSV files in the
+<code class="docutils literal notranslate"><span class="pre">_packages</span></code> subdirectory.</p>
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">metapack-build</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../license.html">License</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../authors.html">Authors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../changelog.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/modules.html">Module Reference</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Eric Busboom.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.0.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/build/Publishing.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

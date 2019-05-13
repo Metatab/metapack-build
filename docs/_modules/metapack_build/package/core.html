@@ -1,0 +1,746 @@
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <title>metapack_build.package.core &#8212; metapack-build 0.0.2 documentation</title>
+    <link rel="stylesheet" href="../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for metapack_build.package.core</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Copyright (c) 2017 Civic Knowledge. This file is licensed under the terms of the</span>
+<span class="c1"># MIT License, included in this distribution as LICENSE</span>
+
+<span class="sd">&quot;&quot;&quot; &quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">collections</span> <span class="k">import</span> <span class="n">namedtuple</span>
+<span class="kn">from</span> <span class="nn">genericpath</span> <span class="k">import</span> <span class="n">exists</span>
+<span class="kn">from</span> <span class="nn">hashlib</span> <span class="k">import</span> <span class="n">sha1</span>
+<span class="kn">from</span> <span class="nn">itertools</span> <span class="k">import</span> <span class="n">islice</span>
+<span class="kn">from</span> <span class="nn">os</span> <span class="k">import</span> <span class="n">walk</span>
+<span class="kn">from</span> <span class="nn">os.path</span> <span class="k">import</span> <span class="n">dirname</span><span class="p">,</span> <span class="n">abspath</span><span class="p">,</span> <span class="n">basename</span><span class="p">,</span> <span class="n">splitext</span><span class="p">,</span> <span class="n">join</span><span class="p">,</span> <span class="n">isdir</span>
+<span class="kn">from</span> <span class="nn">time</span> <span class="k">import</span> <span class="n">time</span>
+
+<span class="kn">import</span> <span class="nn">unicodecsv</span> <span class="k">as</span> <span class="nn">csv</span>  <span class="c1"># legacy; shoudl convert to csv package.</span>
+<span class="kn">from</span> <span class="nn">metapack.appurl</span> <span class="k">import</span> <span class="n">MetapackUrl</span><span class="p">,</span> <span class="n">MetapackPackageUrl</span>
+<span class="kn">from</span> <span class="nn">metapack.exc</span> <span class="k">import</span> <span class="n">PackageError</span>
+<span class="kn">from</span> <span class="nn">metapack.terms</span> <span class="k">import</span> <span class="n">Resource</span>
+<span class="kn">from</span> <span class="nn">metapack.util</span> <span class="k">import</span> <span class="n">Bunch</span>
+<span class="kn">from</span> <span class="nn">metatab</span> <span class="k">import</span> <span class="n">DEFAULT_METATAB_FILE</span>
+<span class="kn">from</span> <span class="nn">rowgenerators</span> <span class="k">import</span> <span class="n">Downloader</span> <span class="k">as</span> <span class="n">_Downloader</span><span class="p">,</span> <span class="n">get_generator</span><span class="p">,</span> <span class="n">parse_app_url</span>
+<span class="kn">from</span> <span class="nn">rowgenerators.util</span> <span class="k">import</span> <span class="n">slugify</span>
+<span class="kn">from</span> <span class="nn">tableintuit</span> <span class="k">import</span> <span class="n">RowIntuiter</span>
+
+
+
+<div class="viewcode-block" id="PackageBuilder"><a class="viewcode-back" href="../../../api/metapack_build.package.html#metapack_build.package.core.PackageBuilder">[docs]</a><span class="k">class</span> <span class="nc">PackageBuilder</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+    <span class="n">type_code</span> <span class="o">=</span> <span class="s1">&#39;unk&#39;</span>
+    <span class="n">type_suffix</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">source_ref</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">package_root</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>  <span class="n">callback</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">env</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="kn">from</span> <span class="nn">metapack.doc</span> <span class="k">import</span> <span class="n">MetapackDoc</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_downloader</span> <span class="o">=</span> <span class="n">source_ref</span><span class="o">.</span><span class="n">_downloader</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_downloader</span><span class="o">.</span><span class="n">cache</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_source_ref</span> <span class="o">=</span> <span class="n">source_ref</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">source_dir</span> <span class="o">=</span> <span class="n">dirname</span><span class="p">(</span><span class="n">parse_app_url</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_source_ref</span><span class="p">)</span><span class="o">.</span><span class="n">path</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">package_root</span> <span class="o">=</span> <span class="n">package_root</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_callback</span> <span class="o">=</span> <span class="n">callback</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_env</span> <span class="o">=</span> <span class="n">env</span> <span class="k">if</span> <span class="n">env</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="p">{}</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_source_doc</span> <span class="o">=</span> <span class="n">MetapackDoc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_source_ref</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="p">)</span> <span class="c1"># this one stays constant</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_doc</span> <span class="o">=</span> <span class="n">MetapackDoc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_source_ref</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="p">)</span> <span class="c1"># This one gets edited</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_last_write_path</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">doc</span><span class="o">.</span><span class="n">find_first_value</span><span class="p">(</span><span class="s1">&#39;Root.Name&#39;</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="n">PackageError</span><span class="p">(</span><span class="s2">&quot;Package must have Root.Name term defined&quot;</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">path</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_source_ref</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">source_url</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">parse_app_url</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_source_ref</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="PackageBuilder.exists"><a class="viewcode-back" href="../../../api/metapack_build.package.html#metapack_build.package.core.PackageBuilder.exists">[docs]</a>    <span class="k">def</span> <span class="nf">exists</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">package_path</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span></div>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">doc</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_doc</span>
+
+<div class="viewcode-block" id="PackageBuilder.copy_section"><a class="viewcode-back" href="../../../api/metapack_build.package.html#metapack_build.package.core.PackageBuilder.copy_section">[docs]</a>    <span class="k">def</span> <span class="nf">copy_section</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">section_name</span><span class="p">,</span> <span class="n">doc</span><span class="p">):</span>
+
+        <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">doc</span><span class="p">[</span><span class="n">section_name</span><span class="p">]:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">doc</span><span class="o">.</span><span class="n">add_term</span><span class="p">(</span><span class="n">t</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PackageBuilder.resources"><a class="viewcode-back" href="../../../api/metapack_build.package.html#metapack_build.package.core.PackageBuilder.resources">[docs]</a>    <span class="k">def</span> <span class="nf">resources</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">term</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">section</span><span class="o">=</span><span class="s1">&#39;resources&#39;</span><span class="p">):</span>
+
+        <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">doc</span><span class="p">[</span><span class="s1">&#39;Resources&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;root.resource&#39;</span><span class="p">):</span>
+            <span class="k">yield</span> <span class="n">r</span></div>
+
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">datafiles</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Iterate over data file *in the original document*. Don&#39;t alter these! &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_source_doc</span><span class="p">[</span><span class="s1">&#39;Resources&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">find</span><span class="p">([</span><span class="s1">&#39;root.datafile&#39;</span><span class="p">,</span>
+                                                     <span class="s1">&#39;root.suplimentarydata&#39;</span><span class="p">,</span>
+                                                     <span class="s1">&#39;root.datadictionary&#39;</span><span class="p">,</span>
+                                                     <span class="s1">&#39;root.sql&#39;</span><span class="p">]):</span>
+            <span class="k">yield</span> <span class="n">r</span>
+
+<div class="viewcode-block" id="PackageBuilder.datafile"><a class="viewcode-back" href="../../../api/metapack_build.package.html#metapack_build.package.core.PackageBuilder.datafile">[docs]</a>    <span class="k">def</span> <span class="nf">datafile</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ref</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Return a resource, as a file-like-object, given it&#39;s name or url as a reference.</span>
+
+<span class="sd">        Returns from the editable document copy.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doc</span><span class="o">.</span><span class="n">resource</span><span class="p">(</span><span class="n">ref</span><span class="p">)</span></div>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">documentation</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">doc</span><span class="o">.</span><span class="n">_terms</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">term_is</span><span class="p">([</span><span class="s1">&#39;root.documentation&#39;</span><span class="p">]):</span>
+                <span class="k">yield</span> <span class="n">Resource</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
+
+<div class="viewcode-block" id="PackageBuilder.schema"><a class="viewcode-back" href="../../../api/metapack_build.package.html#metapack_build.package.core.PackageBuilder.schema">[docs]</a>    <span class="k">def</span> <span class="nf">schema</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ref</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Return information about a resource, given a name or url&quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">()</span></div>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">package_name</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">slugify</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">doc</span><span class="o">.</span><span class="n">get_value</span><span class="p">(</span><span class="s1">&#39;Root.Name&#39;</span><span class="p">))</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">nv_package_name</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Non versioned package name&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">slugify</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">doc</span><span class="o">.</span><span class="n">as_version</span><span class="p">(</span><span class="kc">None</span><span class="p">))</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">sections</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+        <span class="k">class</span> <span class="nc">_Sections</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+            <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">doc</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">doc</span> <span class="o">=</span> <span class="n">doc</span>
+
+            <span class="nd">@property</span>
+            <span class="k">def</span> <span class="nf">root</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doc</span><span class="p">[</span><span class="s1">&#39;root&#39;</span><span class="p">]</span>
+
+            <span class="nd">@property</span>
+            <span class="k">def</span> <span class="nf">resources</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="s1">&#39;resources&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">doc</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">doc</span><span class="o">.</span><span class="n">get_or_new_section</span><span class="p">(</span><span class="s1">&#39;Resources&#39;</span><span class="p">,</span>
+                                                <span class="s2">&quot;Name Schema Space Time StartLine HeaderLines Encoding Description&quot;</span><span class="o">.</span><span class="n">split</span><span class="p">())</span>
+
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doc</span><span class="p">[</span><span class="s1">&#39;resources&#39;</span><span class="p">]</span>
+
+            <span class="nd">@property</span>
+            <span class="k">def</span> <span class="nf">contacts</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="s1">&#39;Contacts&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">doc</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">doc</span><span class="o">.</span><span class="n">get_or_new_section</span><span class="p">(</span><span class="s1">&#39;Contacts&#39;</span><span class="p">,</span> <span class="s1">&#39;Email Org Url&#39;</span><span class="o">.</span><span class="n">split</span><span class="p">())</span>
+
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doc</span><span class="p">[</span><span class="s1">&#39;Contacts&#39;</span><span class="p">]</span>
+
+            <span class="nd">@property</span>
+            <span class="k">def</span> <span class="nf">documentation</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="s1">&#39;Documentation&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">doc</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">doc</span><span class="o">.</span><span class="n">get_or_new_section</span><span class="p">(</span><span class="s1">&#39;Documentation&#39;</span><span class="p">,</span> <span class="s1">&#39;Title Schema Description &#39;</span><span class="o">.</span><span class="n">split</span><span class="p">())</span>
+
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doc</span><span class="p">[</span><span class="s1">&#39;documentation&#39;</span><span class="p">]</span>
+
+            <span class="nd">@property</span>
+            <span class="k">def</span> <span class="nf">schema</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="s1">&#39;Schema&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">doc</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">doc</span><span class="o">.</span><span class="n">get_or_new_section</span><span class="p">(</span><span class="s1">&#39;Schema&#39;</span><span class="p">,</span> <span class="s1">&#39;DataType Description&#39;</span><span class="o">.</span><span class="n">split</span><span class="p">())</span>
+
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doc</span><span class="p">[</span><span class="s1">&#39;schema&#39;</span><span class="p">]</span>
+
+        <span class="k">return</span> <span class="n">_Sections</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_doc</span><span class="p">)</span>
+
+<div class="viewcode-block" id="PackageBuilder.extract_path_name"><a class="viewcode-back" href="../../../api/metapack_build.package.html#metapack_build.package.core.PackageBuilder.extract_path_name">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">extract_path_name</span><span class="p">(</span><span class="n">ref</span><span class="p">):</span>
+
+        <span class="n">du</span> <span class="o">=</span> <span class="n">parse_app_url</span><span class="p">(</span><span class="n">ref</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">du</span><span class="o">.</span><span class="n">proto</span> <span class="o">==</span> <span class="s1">&#39;file&#39;</span><span class="p">:</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="n">abspath</span><span class="p">(</span><span class="n">ref</span><span class="p">)</span>
+            <span class="n">name</span> <span class="o">=</span> <span class="n">basename</span><span class="p">(</span><span class="n">splitext</span><span class="p">(</span><span class="n">path</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="n">ref</span> <span class="o">=</span> <span class="s2">&quot;file://&quot;</span> <span class="o">+</span> <span class="n">path</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="n">ref</span>
+
+            <span class="k">if</span> <span class="n">du</span><span class="o">.</span><span class="n">target_segment</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="nb">int</span><span class="p">(</span><span class="n">du</span><span class="o">.</span><span class="n">target_segment</span><span class="p">)</span>
+                    <span class="n">name</span> <span class="o">=</span> <span class="n">du</span><span class="o">.</span><span class="n">target_file</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">du</span><span class="o">.</span><span class="n">target_segment</span><span class="p">)</span>
+
+                <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+                    <span class="n">name</span> <span class="o">=</span> <span class="n">du</span><span class="o">.</span><span class="n">target_segment</span>
+
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">name</span> <span class="o">=</span> <span class="n">splitext</span><span class="p">(</span><span class="n">du</span><span class="o">.</span><span class="n">target_file</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="k">return</span> <span class="n">ref</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">name</span></div>
+
+<div class="viewcode-block" id="PackageBuilder.classify_url"><a class="viewcode-back" href="../../../api/metapack_build.package.html#metapack_build.package.core.PackageBuilder.classify_url">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">classify_url</span><span class="p">(</span><span class="n">url</span><span class="p">):</span>
+
+        <span class="n">ss</span> <span class="o">=</span> <span class="n">parse_app_url</span><span class="p">(</span><span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">ss</span><span class="o">.</span><span class="n">format</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;xls&#39;</span><span class="p">,</span> <span class="s1">&#39;xlsx&#39;</span><span class="p">,</span> <span class="s1">&#39;tsv&#39;</span><span class="p">,</span> <span class="s1">&#39;csv&#39;</span><span class="p">):</span>
+            <span class="n">term_name</span> <span class="o">=</span> <span class="s1">&#39;DataFile&#39;</span>
+        <span class="k">elif</span> <span class="n">ss</span><span class="o">.</span><span class="n">format</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;pdf&#39;</span><span class="p">,</span> <span class="s1">&#39;doc&#39;</span><span class="p">,</span> <span class="s1">&#39;docx&#39;</span><span class="p">,</span> <span class="s1">&#39;html&#39;</span><span class="p">):</span>
+            <span class="n">term_name</span> <span class="o">=</span> <span class="s1">&#39;Documentation&#39;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">term_name</span> <span class="o">=</span> <span class="s1">&#39;Resource&#39;</span>
+
+        <span class="k">return</span> <span class="n">term_name</span></div>
+
+<div class="viewcode-block" id="PackageBuilder.run_row_intuit"><a class="viewcode-back" href="../../../api/metapack_build.package.html#metapack_build.package.core.PackageBuilder.run_row_intuit">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">run_row_intuit</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">cache</span><span class="p">):</span>
+
+        <span class="k">for</span> <span class="n">encoding</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;ascii&#39;</span><span class="p">,</span> <span class="s1">&#39;utf8&#39;</span><span class="p">,</span> <span class="s1">&#39;latin1&#39;</span><span class="p">):</span>
+
+            <span class="n">rows</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">islice</span><span class="p">(</span><span class="n">get_generator</span><span class="p">(</span><span class="n">url</span><span class="p">),</span> <span class="mi">5000</span><span class="p">))</span>
+            <span class="k">return</span> <span class="n">encoding</span><span class="p">,</span> <span class="n">RowIntuiter</span><span class="p">()</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">rows</span><span class="p">))</span>
+
+
+        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;Failed to convert with any encoding&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PackageBuilder.find_files"><a class="viewcode-back" href="../../../api/metapack_build.package.html#metapack_build.package.core.PackageBuilder.find_files">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">find_files</span><span class="p">(</span><span class="n">base_path</span><span class="p">,</span> <span class="n">types</span><span class="p">):</span>
+
+        <span class="k">for</span> <span class="n">root</span><span class="p">,</span> <span class="n">dirs</span><span class="p">,</span> <span class="n">files</span> <span class="ow">in</span> <span class="n">walk</span><span class="p">(</span><span class="n">base_path</span><span class="p">):</span>
+            <span class="k">if</span> <span class="s1">&#39;_metapack&#39;</span> <span class="ow">in</span> <span class="n">root</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">files</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">f</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">):</span>
+                    <span class="k">continue</span>
+
+                <span class="n">b</span><span class="p">,</span> <span class="n">ext</span> <span class="o">=</span> <span class="n">splitext</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">ext</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span> <span class="ow">in</span> <span class="n">types</span><span class="p">:</span>
+                    <span class="k">yield</span> <span class="n">join</span><span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PackageBuilder.load_declares"><a class="viewcode-back" href="../../../api/metapack_build.package.html#metapack_build.package.core.PackageBuilder.load_declares">[docs]</a>    <span class="k">def</span> <span class="nf">load_declares</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">doc</span><span class="o">.</span><span class="n">load_declarations</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">value</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">doc</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;Root.Declare&#39;</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="PackageBuilder.prt"><a class="viewcode-back" href="../../../api/metapack_build.package.html#metapack_build.package.core.PackageBuilder.prt">[docs]</a>    <span class="k">def</span> <span class="nf">prt</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_callback</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_callback</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PackageBuilder.warn"><a class="viewcode-back" href="../../../api/metapack_build.package.html#metapack_build.package.core.PackageBuilder.warn">[docs]</a>    <span class="k">def</span> <span class="nf">warn</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_callback</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_callback</span><span class="p">(</span><span class="s1">&#39;WARN&#39;</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PackageBuilder.err"><a class="viewcode-back" href="../../../api/metapack_build.package.html#metapack_build.package.core.PackageBuilder.err">[docs]</a>    <span class="k">def</span> <span class="nf">err</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_callback</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_callback</span><span class="p">(</span><span class="s1">&#39;ERROR&#39;</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PackageBuilder.add_single_resource"><a class="viewcode-back" href="../../../api/metapack_build.package.html#metapack_build.package.core.PackageBuilder.add_single_resource">[docs]</a>    <span class="k">def</span> <span class="nf">add_single_resource</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ref</span><span class="p">,</span> <span class="o">**</span><span class="n">properties</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Add a single resource, without trying to enumerate it&#39;s contents</span>
+<span class="sd">        :param ref:</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">t</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">doc</span><span class="o">.</span><span class="n">find_first</span><span class="p">(</span><span class="s1">&#39;Root.Datafile&#39;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">ref</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">t</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">prt</span><span class="p">(</span><span class="s2">&quot;Datafile exists for &#39;</span><span class="si">{}</span><span class="s2">&#39;, deleting&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">ref</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">doc</span><span class="o">.</span><span class="n">remove_term</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+
+        <span class="n">term_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">classify_url</span><span class="p">(</span><span class="n">ref</span><span class="p">)</span>
+
+        <span class="n">ref</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">extract_path_name</span><span class="p">(</span><span class="n">ref</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">prt</span><span class="p">(</span><span class="s2">&quot;Adding resource for &#39;</span><span class="si">{}</span><span class="s2">&#39;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">ref</span><span class="p">))</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">encoding</span><span class="p">,</span> <span class="n">ri</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_row_intuit</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;Failed to intuit &#39;</span><span class="si">{}</span><span class="s2">&#39;; </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">e</span><span class="p">))</span>
+            <span class="k">return</span> <span class="kc">None</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">name</span><span class="p">:</span>
+
+            <span class="n">name</span> <span class="o">=</span> <span class="n">sha1</span><span class="p">(</span><span class="n">slugify</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;ascii&#39;</span><span class="p">))</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()[:</span><span class="mi">12</span><span class="p">]</span>
+
+            <span class="c1"># xlrd gets grouchy if the name doesn&#39;t start with a char</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="nb">int</span><span class="p">(</span><span class="n">name</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                <span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;a&#39;</span> <span class="o">+</span> <span class="n">name</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+            <span class="k">except</span><span class="p">:</span>
+                <span class="k">pass</span>
+
+        <span class="k">if</span> <span class="s1">&#39;name&#39;</span> <span class="ow">in</span> <span class="n">properties</span><span class="p">:</span>
+            <span class="n">name</span> <span class="o">=</span> <span class="n">properties</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span>
+            <span class="k">del</span> <span class="n">properties</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">sections</span><span class="o">.</span><span class="n">resources</span><span class="o">.</span><span class="n">new_term</span><span class="p">(</span><span class="n">term_name</span><span class="p">,</span> <span class="n">ref</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
+                                                <span class="n">startline</span><span class="o">=</span><span class="n">ri</span><span class="o">.</span><span class="n">start_line</span><span class="p">,</span>
+                                                <span class="n">headerlines</span><span class="o">=</span><span class="s1">&#39;,&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">ri</span><span class="o">.</span><span class="n">header_lines</span><span class="p">),</span>
+                                                <span class="n">encoding</span><span class="o">=</span><span class="n">encoding</span><span class="p">,</span>
+                                                <span class="o">**</span><span class="n">properties</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PackageBuilder.add_resource"><a class="viewcode-back" href="../../../api/metapack_build.package.html#metapack_build.package.core.PackageBuilder.add_resource">[docs]</a>    <span class="k">def</span> <span class="nf">add_resource</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ref</span><span class="p">,</span> <span class="o">**</span><span class="n">properties</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Add one or more resources entities, from a url and property values,</span>
+<span class="sd">        possibly adding multiple entries for an excel spreadsheet or ZIP file&quot;&quot;&quot;</span>
+
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Still uses decompose_url&quot;</span><span class="p">)</span>
+
+        <span class="n">du</span> <span class="o">=</span> <span class="n">Bunch</span><span class="p">(</span><span class="n">decompose_url</span><span class="p">(</span><span class="n">ref</span><span class="p">))</span>
+
+        <span class="n">added</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="n">du</span><span class="o">.</span><span class="n">proto</span> <span class="o">==</span> <span class="s1">&#39;file&#39;</span> <span class="ow">and</span> <span class="n">isdir</span><span class="p">(</span><span class="n">ref</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">find_files</span><span class="p">(</span><span class="n">ref</span><span class="p">,</span> <span class="p">[</span><span class="s1">&#39;csv&#39;</span><span class="p">]):</span>
+
+                <span class="k">if</span> <span class="n">f</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="n">DEFAULT_METATAB_FILE</span><span class="p">):</span>
+                    <span class="k">continue</span>
+
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_doc</span><span class="o">.</span><span class="n">find_first</span><span class="p">(</span><span class="s1">&#39;Root.Datafile&#39;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">f</span><span class="p">):</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">prt</span><span class="p">(</span><span class="s2">&quot;Datafile exists for &#39;</span><span class="si">{}</span><span class="s2">&#39;, ignoring&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">f</span><span class="p">))</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">added</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">add_resource</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="o">**</span><span class="n">properties</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">prt</span><span class="p">(</span><span class="s2">&quot;Enumerating &#39;</span><span class="si">{}</span><span class="s2">&#39;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">ref</span><span class="p">))</span>
+
+            <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">enumerate_contents</span><span class="p">(</span><span class="n">ref</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="p">):</span>
+                <span class="n">added</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">add_single_resource</span><span class="p">(</span><span class="n">c</span><span class="o">.</span><span class="n">rebuild_url</span><span class="p">(),</span> <span class="o">**</span><span class="n">properties</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="n">added</span></div>
+
+    <span class="k">def</span> <span class="nf">_clean_doc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">doc</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Clean the doc before writing it, removing unnecessary properties and doing other operations.&quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="n">doc</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">doc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">doc</span>
+
+        <span class="n">resources</span> <span class="o">=</span> <span class="n">doc</span><span class="p">[</span><span class="s1">&#39;Resources&#39;</span><span class="p">]</span>
+
+        <span class="c1"># We don&#39;t need these anymore because all of the data written into the package is normalized.</span>
+        <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;startline&#39;</span><span class="p">,</span> <span class="s1">&#39;headerlines&#39;</span><span class="p">,</span> <span class="s1">&#39;encoding&#39;</span><span class="p">]:</span>
+            <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">resources</span><span class="o">.</span><span class="n">args</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">e</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="n">arg</span><span class="p">:</span>
+                    <span class="n">resources</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">term</span> <span class="ow">in</span> <span class="n">resources</span><span class="p">:</span>
+            <span class="n">term</span><span class="p">[</span><span class="s1">&#39;startline&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="n">term</span><span class="p">[</span><span class="s1">&#39;headerlines&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="n">term</span><span class="p">[</span><span class="s1">&#39;encoding&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="n">schema</span> <span class="o">=</span> <span class="n">doc</span><span class="p">[</span><span class="s1">&#39;Schema&#39;</span><span class="p">]</span>
+
+        <span class="c1">## FIXME! This is probably dangerous, because the section args are changing, but the children</span>
+        <span class="c1">## are not, so when these two are combined in the Term.properties() acessors, the values are off.</span>
+        <span class="c1">## Because of this, _clean_doc should be run immediately before writing the doc.</span>
+        <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;altname&#39;</span><span class="p">,</span> <span class="s1">&#39;transform&#39;</span><span class="p">]:</span>
+            <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">schema</span><span class="o">.</span><span class="n">args</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">e</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="n">arg</span><span class="p">:</span>
+                    <span class="n">schema</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">table</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">doc</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;Root.Table&#39;</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">table</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;Column&#39;</span><span class="p">):</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">col</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">col</span><span class="p">[</span><span class="s1">&#39;altname&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">value</span>
+                <span class="k">except</span><span class="p">:</span>
+                    <span class="k">pass</span>
+
+                <span class="n">col</span><span class="p">[</span><span class="s1">&#39;altname&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+                <span class="n">col</span><span class="p">[</span><span class="s1">&#39;transform&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="c1"># Remove any DSNs</span>
+
+        <span class="c1">#for dsn_t in self.doc.find(&#39;Root.Dsn&#39;):</span>
+        <span class="c1">#    self.doc.remove_term(dsn_t)</span>
+
+
+        <span class="k">return</span> <span class="n">doc</span>
+
+    <span class="k">def</span> <span class="nf">_load_resources</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">abs_path</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Copy all of the Datafile entries into the package&quot;&quot;&quot;</span>
+        <span class="kn">from</span> <span class="nn">metapack.doc</span> <span class="k">import</span> <span class="n">MetapackDoc</span>
+
+        <span class="k">assert</span> <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">doc</span><span class="p">)</span> <span class="o">==</span> <span class="n">MetapackDoc</span>
+
+        <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">datafiles</span><span class="p">:</span>
+
+            <span class="c1"># Special handling for SQL is probably a really bad idea. It should be handled as</span>
+            <span class="c1"># a Rowgenerator.</span>
+            <span class="k">if</span> <span class="n">r</span><span class="o">.</span><span class="n">term_is</span><span class="p">(</span><span class="s1">&#39;root.sql&#39;</span><span class="p">):</span>
+
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">r</span><span class="o">.</span><span class="n">value</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;No value for SQL URL for </span><span class="si">{}</span><span class="s2"> &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">term</span><span class="p">))</span>
+                    <span class="k">continue</span>
+
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_load_resource</span><span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="n">abs_path</span><span class="p">)</span>
+                <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">r</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;ignoreerrors&#39;</span><span class="p">):</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Ignoring errors for </span><span class="si">{r.name}</span><span class="s2">: {str(e)}&quot;</span><span class="p">)</span>
+                        <span class="k">pass</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="k">raise</span> <span class="n">e</span>
+
+            <span class="k">else</span><span class="p">:</span>
+
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">r</span><span class="o">.</span><span class="n">url</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;No value for URL for </span><span class="si">{}</span><span class="s2"> &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">term</span><span class="p">))</span>
+                    <span class="k">continue</span>
+
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_resource</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">r</span><span class="p">):</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">prt</span><span class="p">(</span><span class="s2">&quot;Resource &#39;</span><span class="si">{}</span><span class="s2">&#39; exists, skipping&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">name</span><span class="p">))</span>
+                    <span class="k">continue</span>
+                <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+                    <span class="k">pass</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">prt</span><span class="p">(</span><span class="s2">&quot;Reading resource </span><span class="si">{}</span><span class="s2"> from </span><span class="si">{}</span><span class="s2"> &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">r</span><span class="o">.</span><span class="n">resolved_url</span><span class="p">))</span>
+
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">r</span><span class="o">.</span><span class="n">headers</span><span class="p">:</span>
+                        <span class="k">raise</span> <span class="n">PackageError</span><span class="p">(</span><span class="s2">&quot;Resource </span><span class="si">{}</span><span class="s2"> does not have header. Have schemas been generated?&quot;</span>
+                                            <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">name</span><span class="p">))</span>
+                <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="n">PackageError</span><span class="p">(</span><span class="s2">&quot;Resource &#39;</span><span class="si">{}</span><span class="s2">&#39; of type </span><span class="si">{}</span><span class="s2"> does not have a headers property&quot;</span>
+                                       <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">url</span><span class="p">,</span> <span class="nb">type</span><span class="p">(</span><span class="n">r</span><span class="p">)))</span>
+
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_load_resource</span><span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="n">abs_path</span><span class="p">)</span>
+                <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">r</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;ignoreerrors&#39;</span><span class="p">):</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Ignoring errors for </span><span class="si">{r.name}</span><span class="s2">: {str(e)}&quot;</span><span class="p">)</span>
+                        <span class="k">pass</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="k">raise</span> <span class="n">e</span>
+
+
+
+
+    <span class="k">def</span> <span class="nf">_load_resource</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">source_r</span><span class="p">,</span> <span class="n">abs_path</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">()</span>
+
+<div class="viewcode-block" id="PackageBuilder.write_csv"><a class="viewcode-back" href="../../../api/metapack_build.package.html#metapack_build.package.core.PackageBuilder.write_csv">[docs]</a>    <span class="k">def</span> <span class="nf">write_csv</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path_or_flo</span><span class="p">,</span> <span class="n">headers</span><span class="p">,</span> <span class="n">gen</span><span class="p">):</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">f</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">path_or_flo</span><span class="p">,</span> <span class="s2">&quot;wb&quot;</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">TypeError</span><span class="p">:</span>
+            <span class="n">f</span> <span class="o">=</span> <span class="n">path_or_flo</span>  <span class="c1"># Assume that it&#39;s already a file-like-object</span>
+
+        <span class="n">last_time</span> <span class="o">=</span> <span class="n">start_time</span> <span class="o">=</span> <span class="n">time</span><span class="p">()</span>
+        <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">w</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">writer</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+            <span class="n">w</span><span class="o">.</span><span class="n">writerow</span><span class="p">(</span><span class="n">headers</span><span class="p">)</span>
+
+            <span class="n">row</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">gen</span><span class="p">:</span>
+                    <span class="n">w</span><span class="o">.</span><span class="n">writerow</span><span class="p">(</span><span class="n">row</span><span class="p">)</span>
+                    <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+
+                    <span class="k">if</span> <span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">last_time</span> <span class="o">&gt;</span> <span class="mi">25</span><span class="p">:</span>
+                        <span class="n">dt</span> <span class="o">=</span> <span class="n">time</span><span class="p">()</span><span class="o">-</span><span class="n">start_time</span>
+                        <span class="n">rate</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">i</span><span class="p">)</span><span class="o">/</span><span class="p">(</span><span class="n">dt</span><span class="p">)</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">prt</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Processed </span><span class="si">{i}</span><span class="s1"> rows in {round(dt,0)} sec, rate = {round(rate,2)} rows/sec&#39;</span><span class="p">)</span>
+                        <span class="n">last_time</span> <span class="o">=</span> <span class="n">time</span><span class="p">()</span>
+
+            <span class="k">except</span><span class="p">:</span>
+                <span class="kn">import</span> <span class="nn">sys</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;write_csv: ERROR IN ROW&quot;</span><span class="p">,</span> <span class="n">row</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+                <span class="k">raise</span>
+
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">f</span><span class="o">.</span><span class="n">getvalue</span><span class="p">()</span>
+            <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">None</span>
+
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="n">dt</span> <span class="o">=</span> <span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_time</span>
+            <span class="n">rate</span> <span class="o">=</span> <span class="nb">round</span><span class="p">((</span><span class="nb">float</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">dt</span><span class="p">)),</span><span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="n">dt</span> <span class="o">!=</span> <span class="mi">0</span> <span class="k">else</span> <span class="s1">&#39;undef&#39;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">prt</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Processed </span><span class="si">{i}</span><span class="s1"> rows in {round(dt,0)} sec, rate = </span><span class="si">{rate}</span><span class="s1"> rows/sec&#39;</span><span class="p">)</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div>
+
+
+    <span class="k">def</span> <span class="nf">_get_ref_contents</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">working_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+
+        <span class="n">uv</span> <span class="o">=</span> <span class="n">parse_app_url</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">value</span><span class="p">,</span> <span class="n">working_dir</span><span class="o">=</span><span class="n">abspath</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">source_dir</span><span class="p">))</span>
+
+        <span class="c1"># In the case that the input doc is a file, and the ref is to a file,</span>
+        <span class="c1"># try interpreting the file as relative.</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">source_url</span><span class="o">.</span><span class="n">proto</span> <span class="o">==</span> <span class="s1">&#39;file&#39;</span> <span class="ow">and</span> <span class="n">uv</span><span class="o">.</span><span class="n">proto</span> <span class="o">==</span> <span class="s1">&#39;file&#39;</span><span class="p">:</span>
+            <span class="n">u</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">source_url</span><span class="o">.</span><span class="n">join_dir</span><span class="p">(</span><span class="n">uv</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">u</span> <span class="o">=</span> <span class="n">uv</span>
+
+        <span class="k">return</span> <span class="n">u</span><span class="o">.</span><span class="n">get_resource</span><span class="p">()</span> <span class="k">if</span> <span class="n">u</span> <span class="k">else</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="nf">_load_documentation_files</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Copy all of the Datafile &quot;&quot;&quot;</span>
+
+        <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">doc</span><span class="o">.</span><span class="n">find</span><span class="p">([</span><span class="s1">&#39;Root.Documentation&#39;</span><span class="p">,</span> <span class="s1">&#39;Root.Image&#39;</span><span class="p">,</span> <span class="s1">&#39;Root.Notebook&#39;</span><span class="p">]):</span>
+
+            <span class="n">resource</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_ref_contents</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">resource</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">term_is</span><span class="p">(</span><span class="s1">&#39;Root.Documentation&#39;</span><span class="p">):</span>
+                <span class="c1"># Prefer the slugified title to the base name, because in cases of collections</span>
+                <span class="c1"># of many data releases, like annual datasets, documentation files may all have the same name,</span>
+                <span class="c1"># but the titles should be different.</span>
+                <span class="n">real_name_base</span><span class="p">,</span> <span class="n">ext</span> <span class="o">=</span> <span class="n">splitext</span><span class="p">(</span><span class="n">resource</span><span class="o">.</span><span class="n">resource_file</span><span class="p">)</span>
+
+                <span class="n">name</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">get_value</span><span class="p">(</span><span class="s1">&#39;name&#39;</span><span class="p">)</span> <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">get_value</span><span class="p">(</span><span class="s1">&#39;name&#39;</span><span class="p">)</span> <span class="k">else</span> <span class="n">real_name_base</span>
+                <span class="n">real_name</span> <span class="o">=</span> <span class="n">slugify</span><span class="p">(</span><span class="n">name</span><span class="p">)</span> <span class="o">+</span> <span class="n">ext</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">_load_documentation</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">resource</span><span class="o">.</span><span class="n">read</span><span class="p">(),</span> <span class="n">resource</span><span class="o">.</span><span class="n">resource_file</span><span class="p">)</span>
+
+        <span class="c1"># Root.Readme is a special term added from Jupyter notebooks, so README files</span>
+        <span class="c1"># can be generated for packages.</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">doc</span><span class="o">.</span><span class="n">find_first</span><span class="p">(</span><span class="s1">&#39;Root.Readme&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">t</span> <span class="ow">and</span> <span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">value</span> <span class="ow">or</span> <span class="s1">&#39;&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">():</span>
+
+            <span class="c1"># Since the text is comming from a notebook, it probably does not have a title</span>
+            <span class="n">t</span><span class="p">[</span><span class="s1">&#39;title&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;Readme&#39;</span>
+
+            <span class="n">readme</span> <span class="o">=</span> <span class="s1">&#39;# &#39;</span><span class="o">+</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">doc</span><span class="o">.</span><span class="n">get_value</span><span class="p">(</span><span class="s1">&#39;Root.Title&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="s1">&#39;&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">doc</span><span class="o">.</span><span class="n">description</span><span class="p">:</span>
+                <span class="n">readme</span> <span class="o">+=</span> <span class="s1">&#39;</span><span class="se">\n\n</span><span class="s1">&#39;</span> <span class="o">+</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">doc</span><span class="o">.</span><span class="n">description</span> <span class="ow">or</span> <span class="s1">&#39;&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+
+            <span class="k">if</span> <span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">value</span> <span class="ow">or</span> <span class="s1">&#39;&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">():</span>
+                <span class="n">readme</span> <span class="o">+=</span> <span class="s1">&#39;</span><span class="se">\n\n</span><span class="s1">&#39;</span> <span class="o">+</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">value</span> <span class="ow">or</span> <span class="s1">&#39;&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">_load_documentation</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">readme</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf8&#39;</span><span class="p">),</span> <span class="s1">&#39;README.md&#39;</span><span class="p">)</span>
+
+
+    <span class="k">def</span> <span class="nf">_load_documentation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">term</span><span class="p">,</span> <span class="n">contents</span><span class="p">,</span> <span class="n">file_name</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_load_files</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Load other files&quot;&quot;&quot;</span>
+
+        <span class="k">def</span> <span class="nf">copy_dir</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+            <span class="k">for</span> <span class="p">(</span><span class="n">dr</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">files</span><span class="p">)</span> <span class="ow">in</span> <span class="n">walk</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+                <span class="k">for</span> <span class="n">fn</span> <span class="ow">in</span> <span class="n">files</span><span class="p">:</span>
+
+                    <span class="k">if</span> <span class="s1">&#39;__pycache__&#39;</span> <span class="ow">in</span> <span class="n">fn</span><span class="p">:</span>
+                        <span class="k">continue</span>
+
+                    <span class="n">relpath</span> <span class="o">=</span> <span class="n">dr</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">source_dir</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)</span>
+                    <span class="n">src</span> <span class="o">=</span> <span class="n">parse_app_url</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">dr</span><span class="p">,</span> <span class="n">fn</span><span class="p">))</span>
+                    <span class="n">dest</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">relpath</span><span class="p">,</span> <span class="n">fn</span><span class="p">)</span>
+
+                    <span class="n">resource</span> <span class="o">=</span> <span class="n">src</span><span class="o">.</span><span class="n">get_resource</span><span class="p">()</span>
+
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_load_file</span><span class="p">(</span> <span class="n">dest</span><span class="p">,</span> <span class="n">resource</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
+
+        <span class="k">for</span> <span class="n">term</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">resources</span><span class="p">(</span><span class="n">term</span> <span class="o">=</span> <span class="s1">&#39;Root.Pythonlib&#39;</span><span class="p">):</span>
+
+            <span class="n">uv</span> <span class="o">=</span> <span class="n">parse_app_url</span><span class="p">(</span><span class="n">term</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
+            <span class="n">ur</span> <span class="o">=</span> <span class="n">parse_app_url</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">source_dir</span><span class="p">)</span>
+
+            <span class="c1"># In the case that the input doc is a file, and the ref is to a file,</span>
+            <span class="c1"># try interpreting the file as relative.</span>
+            <span class="k">if</span> <span class="n">ur</span><span class="o">.</span><span class="n">proto</span> <span class="o">==</span> <span class="s1">&#39;file&#39;</span> <span class="ow">and</span> <span class="n">uv</span><span class="o">.</span><span class="n">proto</span> <span class="o">==</span> <span class="s1">&#39;file&#39;</span><span class="p">:</span>
+
+                <span class="c1"># Either a file or a directory</span>
+                <span class="n">path</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">source_dir</span><span class="p">,</span> <span class="n">uv</span><span class="o">.</span><span class="n">path</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">isdir</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+                    <span class="n">copy_dir</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># Load it as a URL</span>
+                <span class="n">f</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_ref_contents</span><span class="p">(</span><span class="n">term</span><span class="p">)</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_load_file</span><span class="p">(</span><span class="n">term</span><span class="o">.</span><span class="n">value</span><span class="p">,</span><span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span> <span class="p">)</span>
+                <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="n">PackageError</span><span class="p">(</span><span class="s2">&quot;Failed to load file for &#39;</span><span class="si">{}</span><span class="s2">&#39;: </span><span class="si">{}</span><span class="s2"> &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">term</span><span class="o">.</span><span class="n">value</span><span class="p">,</span> <span class="n">e</span><span class="p">))</span>
+
+        <span class="n">nb_dir</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">source_dir</span><span class="p">,</span> <span class="s1">&#39;notebooks&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">exists</span><span class="p">(</span><span class="n">nb_dir</span><span class="p">)</span> <span class="ow">and</span> <span class="n">isdir</span><span class="p">(</span><span class="n">nb_dir</span><span class="p">):</span>
+            <span class="n">copy_dir</span><span class="p">(</span><span class="n">nb_dir</span><span class="p">)</span>
+
+
+    <span class="k">def</span> <span class="nf">_load_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>  <span class="n">filename</span><span class="p">,</span> <span class="n">contents</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="PackageBuilder.check_is_ready"><a class="viewcode-back" href="../../../api/metapack_build.package.html#metapack_build.package.core.PackageBuilder.check_is_ready">[docs]</a>    <span class="k">def</span> <span class="nf">check_is_ready</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="PackageBuilder.create_nv_link"><a class="viewcode-back" href="../../../api/metapack_build.package.html#metapack_build.package.core.PackageBuilder.create_nv_link">[docs]</a>    <span class="k">def</span> <span class="nf">create_nv_link</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;After a save(), write a link to the saved file using a non-versioned name&quot;&quot;&quot;</span>
+        <span class="kn">from</span> <span class="nn">os.path</span> <span class="k">import</span> <span class="n">abspath</span><span class="p">,</span> <span class="n">islink</span>
+        <span class="kn">from</span> <span class="nn">os</span> <span class="k">import</span> <span class="n">unlink</span><span class="p">,</span> <span class="n">symlink</span>
+
+        <span class="n">nv_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">doc</span><span class="o">.</span><span class="n">as_version</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
+
+        <span class="n">from_path</span> <span class="o">=</span>  <span class="n">abspath</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_last_write_path</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">package_path</span><span class="o">.</span><span class="n">path</span><span class="p">)</span>
+
+        <span class="n">to_path</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">dirname</span><span class="p">(</span><span class="n">from_path</span><span class="p">),</span> <span class="n">nv_name</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">type_suffix</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">islink</span><span class="p">(</span><span class="n">to_path</span><span class="p">):</span>
+            <span class="n">unlink</span><span class="p">(</span><span class="n">to_path</span><span class="p">)</span>
+
+        <span class="n">symlink</span><span class="p">(</span><span class="n">from_path</span><span class="p">,</span> <span class="n">to_path</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PackageBuilder.move_to_nv_name"><a class="viewcode-back" href="../../../api/metapack_build.package.html#metapack_build.package.core.PackageBuilder.move_to_nv_name">[docs]</a>    <span class="k">def</span> <span class="nf">move_to_nv_name</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;After a save, move a file package to a non-versioned name&quot;&quot;&quot;</span>
+
+        <span class="kn">from</span> <span class="nn">os.path</span> <span class="k">import</span> <span class="n">abspath</span><span class="p">,</span> <span class="n">islink</span>
+        <span class="kn">from</span> <span class="nn">os</span> <span class="k">import</span> <span class="n">unlink</span><span class="p">,</span> <span class="n">rename</span>
+
+        <span class="n">nv_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">doc</span><span class="o">.</span><span class="n">as_version</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
+
+        <span class="n">from_path</span> <span class="o">=</span>  <span class="n">abspath</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_last_write_path</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">package_path</span><span class="o">.</span><span class="n">path</span><span class="p">)</span>
+
+        <span class="n">to_path</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">dirname</span><span class="p">(</span><span class="n">from_path</span><span class="p">),</span> <span class="n">nv_name</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">type_suffix</span><span class="p">)</span>
+
+        <span class="n">rename</span><span class="p">(</span><span class="n">from_path</span><span class="p">,</span> <span class="n">to_path</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PackageBuilder.package_build_time"><a class="viewcode-back" href="../../../api/metapack_build.package.html#metapack_build.package.core.PackageBuilder.package_build_time">[docs]</a>    <span class="k">def</span> <span class="nf">package_build_time</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="kn">from</span> <span class="nn">genericpath</span> <span class="k">import</span> <span class="n">getmtime</span>
+
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">path</span>
+        <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">path</span>
+
+        <span class="k">return</span> <span class="n">getmtime</span><span class="p">(</span><span class="n">path</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PackageBuilder.is_older_than_metadata"><a class="viewcode-back" href="../../../api/metapack_build.package.html#metapack_build.package.core.PackageBuilder.is_older_than_metadata">[docs]</a>    <span class="k">def</span> <span class="nf">is_older_than_metadata</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return True if the package save file is older than the metadata. Returns False if the time of either can&#39;t be determined</span>
+
+<span class="sd">        :param path: Optional extra save path, used in save_path()</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span> <span class="nn">genericpath</span> <span class="k">import</span> <span class="n">getmtime</span>
+
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">path</span>
+        <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">path</span>
+
+        <span class="n">source_ref</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_doc</span><span class="o">.</span><span class="n">ref</span><span class="o">.</span><span class="n">path</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">age_diff</span> <span class="o">=</span> <span class="n">getmtime</span><span class="p">(</span><span class="n">source_ref</span><span class="p">)</span> <span class="o">-</span> <span class="n">getmtime</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+
+            <span class="k">return</span> <span class="n">age_diff</span> <span class="o">&gt;</span> <span class="mi">0</span>
+
+        <span class="k">except</span> <span class="p">(</span><span class="ne">FileNotFoundError</span><span class="p">,</span> <span class="ne">OSError</span><span class="p">):</span>
+            <span class="k">return</span> <span class="kc">False</span></div></div>
+
+
+<span class="n">TableColumn</span> <span class="o">=</span> <span class="n">namedtuple</span><span class="p">(</span><span class="s1">&#39;TableColumn&#39;</span><span class="p">,</span> <span class="s1">&#39;path name start_line header_lines columns&#39;</span><span class="p">)</span>
+
+
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../index.html">metapack-build</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../license.html">License</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../authors.html">Authors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../changelog.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/modules.html">Module Reference</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Eric Busboom.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.0.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

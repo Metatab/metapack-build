@@ -1,0 +1,322 @@
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <title>metapack_build.cli.s3 &#8212; metapack-build 0.0.2 documentation</title>
+    <link rel="stylesheet" href="../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for metapack_build.cli.s3</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Copyright (c) 2017 Civic Knowledge. This file is licensed under the terms of the</span>
+<span class="c1"># Revised BSD License, included in this distribution as LICENSE</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">CLI program for storing pacakges in CKAN</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">from</span> <span class="nn">os</span> <span class="k">import</span> <span class="n">getcwd</span><span class="p">,</span> <span class="n">getenv</span>
+<span class="kn">from</span> <span class="nn">os.path</span> <span class="k">import</span> <span class="n">basename</span>
+
+<span class="kn">from</span> <span class="nn">botocore.exceptions</span> <span class="k">import</span> <span class="n">NoCredentialsError</span>
+<span class="kn">from</span> <span class="nn">metapack</span> <span class="k">import</span> <span class="n">MetapackDoc</span><span class="p">,</span> <span class="n">MetapackPackageUrl</span><span class="p">,</span> <span class="n">MetapackUrl</span><span class="p">,</span> <span class="n">open_package</span>
+<span class="kn">from</span> <span class="nn">metapack.cli.core</span> <span class="k">import</span> <span class="n">err</span><span class="p">,</span> <span class="n">generate_packages</span><span class="p">,</span> <span class="n">prt</span>
+<span class="kn">from</span> <span class="nn">metapack.constants</span> <span class="k">import</span> <span class="n">PACKAGE_PREFIX</span>
+<span class="kn">from</span> <span class="nn">metapack.index</span> <span class="k">import</span> <span class="n">SearchIndex</span><span class="p">,</span> <span class="n">search_index_file</span>
+<span class="kn">from</span> <span class="nn">metapack.package</span> <span class="k">import</span> <span class="n">Downloader</span>
+<span class="kn">from</span> <span class="nn">metapack.util</span> <span class="k">import</span> <span class="n">datetime_now</span>
+<span class="kn">from</span> <span class="nn">metapack_build.build</span> <span class="k">import</span> <span class="n">create_s3_csv_package</span><span class="p">,</span> <span class="n">make_s3_package</span>
+<span class="kn">from</span> <span class="nn">metapack_build.package.s3</span> <span class="k">import</span> <span class="n">S3Bucket</span>
+<span class="kn">from</span> <span class="nn">metatab</span> <span class="k">import</span> <span class="n">DEFAULT_METATAB_FILE</span>
+<span class="kn">from</span> <span class="nn">rowgenerators</span> <span class="k">import</span> <span class="n">parse_app_url</span>
+<span class="kn">from</span> <span class="nn">rowgenerators.util</span> <span class="k">import</span> <span class="n">fs_join</span> <span class="k">as</span> <span class="n">join</span>
+<span class="kn">from</span> <span class="nn">tabulate</span> <span class="k">import</span> <span class="n">tabulate</span>
+
+
+<div class="viewcode-block" id="MetapackCliMemo"><a class="viewcode-back" href="../../../api/metapack_build.cli.html#metapack_build.cli.s3.MetapackCliMemo">[docs]</a><span class="k">class</span> <span class="nc">MetapackCliMemo</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">cwd</span> <span class="o">=</span> <span class="n">getcwd</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">args</span> <span class="o">=</span> <span class="n">args</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">downloader</span> <span class="o">=</span> <span class="n">Downloader</span><span class="o">.</span><span class="n">get_instance</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">cache</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">downloader</span><span class="o">.</span><span class="n">cache</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">mtfile_arg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">metatabfile</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">metatabfile</span> <span class="k">else</span> <span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cwd</span><span class="p">,</span> <span class="n">DEFAULT_METATAB_FILE</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">mtfile_url</span> <span class="o">=</span> <span class="n">MetapackUrl</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mtfile_arg</span><span class="p">,</span> <span class="n">downloader</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">downloader</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">resource</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mtfile_url</span><span class="o">.</span><span class="n">fragment</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">package_url</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mtfile_url</span><span class="o">.</span><span class="n">package_url</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mt_file</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mtfile_url</span><span class="o">.</span><span class="n">metadata_url</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">package_root</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">package_url</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">PACKAGE_PREFIX</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">s3</span><span class="p">:</span>
+            <span class="n">doc</span> <span class="o">=</span> <span class="n">MetapackDoc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mt_file</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">s3</span> <span class="o">=</span> <span class="n">doc</span><span class="p">[</span><span class="s1">&#39;Root&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">find_first_value</span><span class="p">(</span><span class="s1">&#39;Root.S3&#39;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">s3_url</span> <span class="o">=</span> <span class="n">parse_app_url</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">s3</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">s3_url</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">s3_url</span><span class="o">.</span><span class="n">scheme</span> <span class="o">==</span> <span class="s1">&#39;s3&#39;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">s3_url</span> <span class="o">=</span> <span class="n">parse_app_url</span><span class="p">(</span><span class="s2">&quot;s3://</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">s3</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">doc</span> <span class="o">=</span> <span class="n">MetapackDoc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mt_file</span><span class="p">)</span>
+
+        <span class="n">access_value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">doc</span><span class="o">.</span><span class="n">find_first_value</span><span class="p">(</span><span class="s1">&#39;Root.Access&#39;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">acl</span> <span class="o">=</span> <span class="s1">&#39;private&#39;</span> <span class="k">if</span> <span class="n">access_value</span> <span class="o">==</span> <span class="s1">&#39;private&#39;</span> <span class="k">else</span> <span class="s1">&#39;public-read&#39;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">bucket</span> <span class="o">=</span> <span class="n">S3Bucket</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">s3_url</span><span class="p">,</span> <span class="n">acl</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">acl</span><span class="p">,</span> <span class="n">profile</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">profile</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">s3_url</span> <span class="k">else</span> <span class="kc">None</span></div>
+
+
+<div class="viewcode-block" id="s3"><a class="viewcode-back" href="../../../api/metapack_build.cli.html#metapack_build.cli.s3.s3">[docs]</a><span class="k">def</span> <span class="nf">s3</span><span class="p">(</span><span class="n">subparsers</span><span class="p">):</span>
+    <span class="n">parser</span> <span class="o">=</span> <span class="n">subparsers</span><span class="o">.</span><span class="n">add_parser</span><span class="p">(</span>
+        <span class="s1">&#39;s3&#39;</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Create packages and store them in s3 buckets&#39;</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="n">parser</span><span class="o">.</span><span class="n">set_defaults</span><span class="p">(</span><span class="n">run_command</span><span class="o">=</span><span class="n">run_s3</span><span class="p">)</span>
+
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;-p&#39;</span><span class="p">,</span> <span class="s1">&#39;--profile&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Name of a BOTO or AWS credentials profile&quot;</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;-s&#39;</span><span class="p">,</span> <span class="s1">&#39;--s3&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;URL to S3 where packages will be stored&quot;</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;-F&#39;</span><span class="p">,</span> <span class="s1">&#39;--force&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store_true&#39;</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Force write for all files&#39;</span><span class="p">)</span>
+
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;-C&#39;</span><span class="p">,</span> <span class="s1">&#39;--credentials&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Show S3 Credentials and exit. &quot;</span>
+                                                    <span class="s2">&quot;Eval this string to setup credentials in other shells.&quot;</span><span class="p">,</span>
+                        <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store_true&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;metatabfile&#39;</span><span class="p">,</span> <span class="n">nargs</span><span class="o">=</span><span class="s1">&#39;?&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Path to a Metatab file&#39;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="run_s3"><a class="viewcode-back" href="../../../api/metapack_build.cli.html#metapack_build.cli.s3.run_s3">[docs]</a><span class="k">def</span> <span class="nf">run_s3</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
+    <span class="n">m</span> <span class="o">=</span> <span class="n">MetapackCliMemo</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">m</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">credentials</span><span class="p">:</span>
+        <span class="n">show_credentials</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">profile</span><span class="p">)</span>
+        <span class="n">exit</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
+    <span class="n">dist_urls</span><span class="p">,</span> <span class="n">fs_p</span> <span class="o">=</span> <span class="n">upload_packages</span><span class="p">(</span><span class="n">m</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">dist_urls</span><span class="p">:</span>
+
+        <span class="c1"># Create the CSV package, with links into the filesystem package</span>
+        <span class="k">if</span> <span class="n">fs_p</span><span class="p">:</span>
+            <span class="n">access_url</span> <span class="o">=</span> <span class="n">create_s3_csv_package</span><span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="n">dist_urls</span><span class="p">,</span> <span class="n">fs_p</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># If this happens, then no packages were created, because an FS package</span>
+            <span class="c1"># is always built first</span>
+            <span class="n">prt</span><span class="p">(</span><span class="s2">&quot;Not creating CSV package; no FS package was uploaded&quot;</span><span class="p">)</span>
+
+        <span class="n">add_to_index</span><span class="p">(</span><span class="n">open_package</span><span class="p">(</span><span class="n">access_url</span><span class="p">))</span>
+
+    <span class="k">if</span> <span class="n">dist_urls</span><span class="p">:</span>
+
+        <span class="n">rows</span> <span class="o">=</span> <span class="p">[[</span><span class="n">path</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="n">reason</span><span class="p">]</span> <span class="k">for</span> <span class="n">what</span><span class="p">,</span> <span class="n">reason</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="n">path</span> <span class="ow">in</span> <span class="n">fs_p</span><span class="o">.</span><span class="n">files_processed</span> <span class="k">if</span> <span class="n">what</span> <span class="o">!=</span> <span class="s1">&#39;skip&#39;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">rows</span><span class="p">:</span>
+            <span class="n">prt</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Wrote these files:&quot;</span><span class="p">)</span>
+            <span class="n">prt</span><span class="p">(</span><span class="n">tabulate</span><span class="p">(</span><span class="n">rows</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="s1">&#39;path url reason&#39;</span><span class="o">.</span><span class="n">split</span><span class="p">()))</span>
+
+        <span class="n">rows</span> <span class="o">=</span> <span class="p">[[</span><span class="n">path</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="n">reason</span><span class="p">]</span> <span class="k">for</span> <span class="n">what</span><span class="p">,</span> <span class="n">reason</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="n">path</span> <span class="ow">in</span> <span class="n">fs_p</span><span class="o">.</span><span class="n">files_processed</span> <span class="k">if</span> <span class="n">what</span> <span class="o">==</span> <span class="s1">&#39;skip&#39;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">rows</span><span class="p">:</span>
+            <span class="n">prt</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Skipped these files:&quot;</span><span class="p">)</span>
+            <span class="n">prt</span><span class="p">(</span><span class="n">tabulate</span><span class="p">(</span><span class="n">rows</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="s1">&#39;path url reason&#39;</span><span class="o">.</span><span class="n">split</span><span class="p">()))</span>
+
+        <span class="n">prt</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Synchronized these Package Urls&quot;</span><span class="p">)</span>
+        <span class="n">prt</span><span class="p">(</span><span class="s2">&quot;-------------------------------&quot;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">au</span> <span class="ow">in</span> <span class="n">dist_urls</span><span class="p">:</span>
+            <span class="n">prt</span><span class="p">(</span><span class="n">au</span><span class="p">)</span>
+        <span class="n">prt</span><span class="p">(</span><span class="s2">&quot;-------------------------------&quot;</span><span class="p">)</span>
+
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">prt</span><span class="p">(</span><span class="s2">&quot;Did not find any packages to upload&quot;</span><span class="p">)</span>
+
+    <span class="n">m</span><span class="o">.</span><span class="n">doc</span><span class="p">[</span><span class="s1">&#39;Root&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">get_or_new_term</span><span class="p">(</span><span class="s1">&#39;Root.Issued&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">datetime_now</span><span class="p">()</span>
+
+    <span class="n">clear_cache</span><span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="n">fs_p</span><span class="o">.</span><span class="n">files_processed</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="clear_cache"><a class="viewcode-back" href="../../../api/metapack_build.cli.html#metapack_build.cli.s3.clear_cache">[docs]</a><span class="k">def</span> <span class="nf">clear_cache</span><span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="n">files_processed</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Remove any files we may have uploaded from the cache. &quot;&quot;&quot;</span>
+
+    <span class="k">for</span> <span class="n">what</span><span class="p">,</span> <span class="n">reason</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="n">path</span> <span class="ow">in</span> <span class="n">files_processed</span><span class="p">:</span>
+        <span class="n">cp</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">doc</span><span class="o">.</span><span class="n">downloader</span><span class="o">.</span><span class="n">cache_path</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">m</span><span class="o">.</span><span class="n">cache</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">cp</span><span class="p">):</span>
+            <span class="n">m</span><span class="o">.</span><span class="n">cache</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">cp</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="add_to_index"><a class="viewcode-back" href="../../../api/metapack_build.cli.html#metapack_build.cli.s3.add_to_index">[docs]</a><span class="k">def</span> <span class="nf">add_to_index</span><span class="p">(</span><span class="n">p</span><span class="p">):</span>
+    <span class="n">idx</span> <span class="o">=</span> <span class="n">SearchIndex</span><span class="p">(</span><span class="n">search_index_file</span><span class="p">())</span>
+
+    <span class="n">idx</span><span class="o">.</span><span class="n">add_package</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s1">&#39;web&#39;</span><span class="p">)</span>
+
+    <span class="n">idx</span><span class="o">.</span><span class="n">write</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="upload_packages"><a class="viewcode-back" href="../../../api/metapack_build.cli.html#metapack_build.cli.s3.upload_packages">[docs]</a><span class="k">def</span> <span class="nf">upload_packages</span><span class="p">(</span><span class="n">m</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;&quot;&quot;&quot;</span>
+    <span class="n">dist_urls</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">fs_p</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="n">files_processed</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="c1"># For each package in _packages with the same name as this document...</span>
+    <span class="k">for</span> <span class="n">ptype</span><span class="p">,</span> <span class="n">purl</span><span class="p">,</span> <span class="n">cache_path</span> <span class="ow">in</span> <span class="n">generate_packages</span><span class="p">(</span><span class="n">m</span><span class="p">):</span>
+
+        <span class="n">au</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">bucket</span><span class="o">.</span><span class="n">access_url</span><span class="p">(</span><span class="n">cache_path</span><span class="p">)</span>
+
+        <span class="c1"># Just copy the Excel and Zip files directly to S3</span>
+        <span class="k">if</span> <span class="n">ptype</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;xlsx&#39;</span><span class="p">,</span> <span class="s1">&#39;zip&#39;</span><span class="p">):</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">purl</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="n">access_url</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">bucket</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">(),</span> <span class="n">basename</span><span class="p">(</span><span class="n">purl</span><span class="o">.</span><span class="n">path</span><span class="p">),</span> <span class="n">m</span><span class="o">.</span><span class="n">acl</span><span class="p">)</span>
+
+                <span class="k">if</span> <span class="n">m</span><span class="o">.</span><span class="n">bucket</span><span class="o">.</span><span class="n">last_reason</span><span class="p">:</span>
+                    <span class="n">files_processed</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="o">*</span><span class="n">m</span><span class="o">.</span><span class="n">bucket</span><span class="o">.</span><span class="n">last_reason</span><span class="p">,</span> <span class="n">access_url</span><span class="p">,</span> <span class="s1">&#39;/&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">purl</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">sep</span><span class="p">)[</span><span class="o">-</span><span class="mi">2</span><span class="p">:])])</span>
+
+                <span class="n">prt</span><span class="p">(</span><span class="s2">&quot;Added </span><span class="si">{}</span><span class="s2"> distribution: </span><span class="si">{}</span><span class="s2"> &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">ptype</span><span class="p">,</span> <span class="n">au</span><span class="p">))</span>
+                <span class="n">dist_urls</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">au</span><span class="p">)</span>
+
+        <span class="k">elif</span> <span class="n">ptype</span> <span class="o">==</span> <span class="s1">&#39;fs&#39;</span><span class="p">:</span>  <span class="c1"># Make the S3 package from the filesystem package</span>
+
+            <span class="n">env</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="n">skip_if_exist</span> <span class="o">=</span> <span class="kc">False</span>
+
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">s3_package_root</span> <span class="o">=</span> <span class="n">MetapackPackageUrl</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">s3_url</span><span class="p">),</span> <span class="n">downloader</span><span class="o">=</span><span class="n">m</span><span class="o">.</span><span class="n">downloader</span><span class="p">)</span>
+
+                <span class="n">fs_p</span><span class="p">,</span> <span class="n">fs_url</span><span class="p">,</span> <span class="n">created</span> <span class="o">=</span> <span class="n">make_s3_package</span><span class="p">(</span><span class="n">purl</span><span class="o">.</span><span class="n">metadata_url</span><span class="p">,</span> <span class="n">s3_package_root</span><span class="p">,</span> <span class="n">m</span><span class="o">.</span><span class="n">cache</span><span class="p">,</span> <span class="n">env</span><span class="p">,</span> <span class="n">skip_if_exist</span><span class="p">,</span>
+                                                        <span class="n">m</span><span class="o">.</span><span class="n">acl</span><span class="p">)</span>
+            <span class="k">except</span> <span class="n">NoCredentialsError</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="n">getenv</span><span class="p">(</span><span class="s1">&#39;AWS_SECRET_ACCESS_KEY&#39;</span><span class="p">))</span>
+                <span class="n">err</span><span class="p">(</span><span class="s2">&quot;Failed to find boto credentials for S3. &quot;</span>
+                    <span class="s2">&quot;See http://boto3.readthedocs.io/en/latest/guide/configuration.html &quot;</span><span class="p">)</span>
+
+            <span class="c1"># A crappy hack. make_s3_package should return the correct url</span>
+            <span class="k">if</span> <span class="n">fs_p</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">m</span><span class="o">.</span><span class="n">acl</span> <span class="o">==</span> <span class="s1">&#39;private&#39;</span><span class="p">:</span>
+                    <span class="n">au</span> <span class="o">=</span> <span class="n">fs_p</span><span class="o">.</span><span class="n">private_access_url</span><span class="o">.</span><span class="n">inner</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">au</span> <span class="o">=</span> <span class="n">fs_p</span><span class="o">.</span><span class="n">public_access_url</span><span class="o">.</span><span class="n">inner</span>
+
+                <span class="n">dist_urls</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">au</span><span class="p">)</span>
+
+    <span class="n">fs_p</span><span class="o">.</span><span class="n">files_processed</span> <span class="o">+=</span> <span class="n">files_processed</span>  <span class="c1"># Ugly encapsulating-breaking hack.</span>
+
+    <span class="k">return</span> <span class="n">dist_urls</span><span class="p">,</span> <span class="n">fs_p</span></div>
+
+
+<div class="viewcode-block" id="show_credentials"><a class="viewcode-back" href="../../../api/metapack_build.cli.html#metapack_build.cli.s3.show_credentials">[docs]</a><span class="k">def</span> <span class="nf">show_credentials</span><span class="p">(</span><span class="n">profile</span><span class="p">):</span>
+    <span class="kn">import</span> <span class="nn">boto3</span>
+
+    <span class="n">session</span> <span class="o">=</span> <span class="n">boto3</span><span class="o">.</span><span class="n">Session</span><span class="p">(</span><span class="n">profile_name</span><span class="o">=</span><span class="n">profile</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">profile</span><span class="p">:</span>
+        <span class="n">cred_line</span> <span class="o">=</span> <span class="s2">&quot; &#39;eval $(metasync -C -p </span><span class="si">{}</span><span class="s2"> )&#39;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">profile</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">cred_line</span> <span class="o">=</span> <span class="s2">&quot; &#39;eval $(metasync -C)&#39;&quot;</span>
+
+    <span class="n">prt</span><span class="p">(</span><span class="s2">&quot;export AWS_ACCESS_KEY_ID=</span><span class="si">{}</span><span class="s2"> &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">session</span><span class="o">.</span><span class="n">get_credentials</span><span class="p">()</span><span class="o">.</span><span class="n">access_key</span><span class="p">))</span>
+    <span class="n">prt</span><span class="p">(</span><span class="s2">&quot;export AWS_SECRET_ACCESS_KEY=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">session</span><span class="o">.</span><span class="n">get_credentials</span><span class="p">()</span><span class="o">.</span><span class="n">secret_key</span><span class="p">))</span>
+    <span class="n">prt</span><span class="p">(</span><span class="s2">&quot;# Run </span><span class="si">{}</span><span class="s2"> to configure credentials in a shell&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">cred_line</span><span class="p">))</span></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../index.html">metapack-build</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../license.html">License</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../authors.html">Authors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../changelog.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/modules.html">Module Reference</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Eric Busboom.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.0.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

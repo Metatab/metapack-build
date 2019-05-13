@@ -1,0 +1,467 @@
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <title>metapack_build.cli.build &#8212; metapack-build 0.0.2 documentation</title>
+    <link rel="stylesheet" href="../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for metapack_build.cli.build</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Copyright (c) 2019 Civic Knowledge. This file is licensed under the terms of the</span>
+<span class="c1"># MIT License, included in this distribution as LICENSE</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">argparse</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">from</span> <span class="nn">pathlib</span> <span class="k">import</span> <span class="n">Path</span>
+<span class="kn">from</span> <span class="nn">time</span> <span class="k">import</span> <span class="n">time</span>
+
+<span class="kn">from</span> <span class="nn">metapack</span> <span class="k">import</span> <span class="n">MetapackDoc</span>
+<span class="kn">from</span> <span class="nn">metapack.cli.core</span> <span class="k">import</span> <span class="p">(</span><span class="n">MetapackCliMemo</span><span class="p">,</span> <span class="n">err</span><span class="p">,</span> <span class="n">extract_path_name</span><span class="p">,</span>
+                               <span class="n">get_lib_module_dict</span><span class="p">,</span> <span class="n">process_schemas</span><span class="p">,</span> <span class="n">prt</span><span class="p">,</span>
+                               <span class="n">update_name</span><span class="p">,</span> <span class="n">write_doc</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">metapack.package</span> <span class="k">import</span> <span class="n">Downloader</span>
+<span class="kn">from</span> <span class="nn">metapack_build.build</span> <span class="k">import</span> <span class="p">(</span><span class="n">make_csv_package</span><span class="p">,</span> <span class="n">make_excel_package</span><span class="p">,</span>
+                                  <span class="n">make_filesystem_package</span><span class="p">,</span> <span class="n">make_zip_package</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">rowgenerators</span> <span class="k">import</span> <span class="n">parse_app_url</span>
+<span class="kn">from</span> <span class="nn">rowgenerators.util</span> <span class="k">import</span> <span class="n">clean_cache</span>
+<span class="kn">from</span> <span class="nn">tableintuit</span> <span class="k">import</span> <span class="n">RowIntuitError</span>
+
+<span class="n">last_dl_message</span> <span class="o">=</span> <span class="n">time</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="build_downloader_callback"><a class="viewcode-back" href="../../../api/metapack_build.cli.html#metapack_build.cli.build.build_downloader_callback">[docs]</a><span class="k">def</span> <span class="nf">build_downloader_callback</span><span class="p">(</span><span class="n">msg_type</span><span class="p">,</span> <span class="n">message</span><span class="p">,</span> <span class="n">read_len</span><span class="p">,</span> <span class="n">total_len</span><span class="p">):</span>
+    <span class="k">global</span> <span class="n">last_dl_message</span>
+    <span class="k">if</span> <span class="n">time</span><span class="p">()</span> <span class="o">&gt;</span> <span class="n">last_dl_message</span> <span class="o">+</span> <span class="mi">5</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\r</span><span class="s2">Downloading </span><span class="si">{}</span><span class="s2"> </span><span class="si">{}</span><span class="s2"> </span><span class="si">{}</span><span class="s2"> bytes &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">msg_type</span><span class="p">,</span> <span class="n">message</span><span class="p">,</span> <span class="n">total_len</span><span class="p">),</span> <span class="n">end</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">)</span>
+        <span class="n">last_dl_message</span> <span class="o">=</span> <span class="n">time</span><span class="p">()</span></div>
+
+
+<span class="n">downloader</span> <span class="o">=</span> <span class="n">Downloader</span><span class="o">.</span><span class="n">get_instance</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="build"><a class="viewcode-back" href="../../../api/metapack_build.cli.html#metapack_build.cli.build.build">[docs]</a><span class="k">def</span> <span class="nf">build</span><span class="p">(</span><span class="n">subparsers</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Build source packages.</span>
+
+<span class="sd">    The mp build program runs all of the resources listed in a Metatab file and</span>
+<span class="sd">    produces one or more Metapack packages with those resources localized. It</span>
+<span class="sd">    will always try to produce a Filesystem package, and may optionally produce</span>
+<span class="sd">    Excel, Zip and CSV packages.</span>
+
+<span class="sd">    Typical usage is to be run inside a source package directory with</span>
+
+<span class="sd">    .. code-block:: bash</span>
+
+<span class="sd">        $ mp build</span>
+
+<span class="sd">    To build all of the package types:</span>
+
+<span class="sd">    .. code-block:: bash</span>
+
+<span class="sd">        $ mp build -fezc</span>
+
+<span class="sd">    By default, packages are built with versioned names. The</span>
+<span class="sd">    :option:`--nonversion-name` option will create file packages with</span>
+<span class="sd">    non-versioned name, and the :option:`--nonversioned-link` option will</span>
+<span class="sd">    produce a non-versioned soft link pointing to the versioned file.</span>
+
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">parser</span> <span class="o">=</span> <span class="n">subparsers</span><span class="o">.</span><span class="n">add_parser</span><span class="p">(</span>
+        <span class="s1">&#39;build&#39;</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Build derived packages&#39;</span><span class="p">,</span>
+        <span class="n">description</span><span class="o">=</span><span class="n">build</span><span class="o">.</span><span class="vm">__doc__</span><span class="p">,</span>
+        <span class="n">formatter_class</span><span class="o">=</span><span class="n">argparse</span><span class="o">.</span><span class="n">RawDescriptionHelpFormatter</span><span class="p">,</span>
+        <span class="n">epilog</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">)</span>
+
+    <span class="n">parser</span><span class="o">.</span><span class="n">set_defaults</span><span class="p">(</span><span class="n">run_command</span><span class="o">=</span><span class="n">run_metapack</span><span class="p">)</span>
+
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;metatabfile&#39;</span><span class="p">,</span> <span class="n">nargs</span><span class="o">=</span><span class="s1">&#39;?&#39;</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Path or URL to a metatab file. If not provided, defaults to &#39;metadata.csv&#39;. &quot;</span>
+                        <span class="p">)</span>
+
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;-p&#39;</span><span class="p">,</span> <span class="s1">&#39;--profile&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Name of a BOTO or AWS credentails profile&quot;</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;-D&#39;</span><span class="p">,</span> <span class="s1">&#39;--package-directory&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Write Zip, Excel and CSV packages to an alternate directory&quot;</span><span class="p">,</span>
+                        <span class="n">required</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;-F&#39;</span><span class="p">,</span> <span class="s1">&#39;--force&#39;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store_true&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Force some operations, like updating the name and building packages&#39;</span><span class="p">)</span>
+
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;-R&#39;</span><span class="p">,</span> <span class="s1">&#39;--reuse-resources&#39;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store_true&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s1">&#39;When building Filesystem package, try to reuse resources built in prior build&#39;</span><span class="p">)</span>
+
+    <span class="n">group</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">add_mutually_exclusive_group</span><span class="p">()</span>
+
+    <span class="n">group</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;-n&#39;</span><span class="p">,</span> <span class="s1">&#39;--nonversion-name&#39;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store_true&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                       <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Write file packages with non-versioned names&#39;</span><span class="p">)</span>
+
+    <span class="n">group</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;-N&#39;</span><span class="p">,</span> <span class="s1">&#39;--nonversion-link&#39;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store_true&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                       <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Create links with nonversioned names to file packages&#39;</span><span class="p">)</span>
+
+    <span class="n">parser</span><span class="o">.</span><span class="n">set_defaults</span><span class="p">(</span><span class="n">handler</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+
+    <span class="c1"># Derived Package Group</span>
+
+    <span class="n">derived_group</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">add_argument_group</span><span class="p">(</span><span class="s1">&#39;Derived Packages&#39;</span><span class="p">,</span> <span class="s1">&#39;Generate other types of packages&#39;</span><span class="p">)</span>
+
+    <span class="n">derived_group</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;-e&#39;</span><span class="p">,</span> <span class="s1">&#39;--excel&#39;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store_true&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                               <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Create an excel archive from a metatab file&#39;</span><span class="p">)</span>
+
+    <span class="n">derived_group</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;-z&#39;</span><span class="p">,</span> <span class="s1">&#39;--zip&#39;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store_true&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                               <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Create a zip archive from a metatab file&#39;</span><span class="p">)</span>
+
+    <span class="n">derived_group</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;-f&#39;</span><span class="p">,</span> <span class="s1">&#39;--filesystem&#39;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store_true&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                               <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Create a filesystem archive from a metatab file&#39;</span><span class="p">)</span>
+
+    <span class="n">derived_group</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;-c&#39;</span><span class="p">,</span> <span class="s1">&#39;--csv&#39;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store_true&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                               <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Create a CSV archive from a metatab file&#39;</span><span class="p">)</span>
+
+    <span class="c1"># Administration Group</span>
+
+    <span class="n">admin_group</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">add_argument_group</span><span class="p">(</span><span class="s1">&#39;Administration&#39;</span><span class="p">,</span> <span class="s1">&#39;Information and administration&#39;</span><span class="p">)</span>
+
+    <span class="n">admin_group</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--clean-cache&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store_true&#39;</span><span class="p">,</span>
+                             <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Clean the download cache&quot;</span><span class="p">)</span>
+
+    <span class="n">admin_group</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;-C&#39;</span><span class="p">,</span> <span class="s1">&#39;--clean&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store_true&#39;</span><span class="p">,</span>
+                             <span class="n">help</span><span class="o">=</span><span class="s2">&quot;For some operations, like updating schemas, clear the section of existing terms first&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="run_metapack"><a class="viewcode-back" href="../../../api/metapack_build.cli.html#metapack_build.cli.build.run_metapack">[docs]</a><span class="k">def</span> <span class="nf">run_metapack</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
+    <span class="kn">from</span> <span class="nn">rowgenerators.rowpipe.exceptions</span> <span class="k">import</span> <span class="n">TooManyCastingErrors</span>
+
+    <span class="n">downloader</span><span class="o">.</span><span class="n">set_callback</span><span class="p">((</span><span class="n">build_downloader_callback</span><span class="p">))</span>
+
+    <span class="n">m</span> <span class="o">=</span> <span class="n">MetapackCliMemo</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">downloader</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">m</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">profile</span><span class="p">:</span>
+        <span class="kn">from</span> <span class="nn">metatab.s3</span> <span class="k">import</span> <span class="n">set_s3_profile</span>
+        <span class="n">set_s3_profile</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">profile</span><span class="p">)</span>
+
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">handler</span> <span class="ow">in</span> <span class="p">(</span><span class="n">metatab_derived_handler</span><span class="p">,</span> <span class="n">metatab_admin_handler</span><span class="p">):</span>
+            <span class="n">handler</span><span class="p">(</span><span class="n">m</span><span class="p">)</span>
+    <span class="k">except</span> <span class="n">TooManyCastingErrors</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="n">prt</span><span class="p">(</span><span class="s1">&#39;Casting Errors:&#39;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">error</span> <span class="ow">in</span> <span class="n">e</span><span class="o">.</span><span class="n">errors</span><span class="p">:</span>
+            <span class="n">prt</span><span class="p">(</span><span class="n">error</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">m</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">exceptions</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">e</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">err</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">raise</span>
+        <span class="k">if</span> <span class="n">m</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">exceptions</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">e</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">err</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+
+    <span class="n">clean_cache</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">cache</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="metatab_derived_handler"><a class="viewcode-back" href="../../../api/metapack_build.cli.html#metapack_build.cli.build.metatab_derived_handler">[docs]</a><span class="k">def</span> <span class="nf">metatab_derived_handler</span><span class="p">(</span><span class="n">m</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Create local Zip, Excel and Filesystem packages</span>
+
+<span class="sd">    :param m:</span>
+<span class="sd">    :param skip_if_exists:</span>
+<span class="sd">    :return:</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">from</span> <span class="nn">metapack.util</span> <span class="k">import</span> <span class="n">get_materialized_data_cache</span>
+    <span class="kn">from</span> <span class="nn">shutil</span> <span class="k">import</span> <span class="n">rmtree</span>
+
+    <span class="n">create_list</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">url</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="n">doc</span> <span class="o">=</span> <span class="n">MetapackDoc</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">mt_file</span><span class="p">)</span>
+
+    <span class="n">env</span> <span class="o">=</span> <span class="n">get_lib_module_dict</span><span class="p">(</span><span class="n">doc</span><span class="p">)</span>
+
+    <span class="n">package_dir</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">package_root</span>
+
+    <span class="k">if</span> <span class="n">m</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">package_directory</span><span class="p">:</span>
+        <span class="c1"># If this is set, the FS package will be built to m.package_root, but the</span>
+        <span class="c1"># file packages will be built to package_dir</span>
+        <span class="n">package_dir</span> <span class="o">=</span> <span class="n">parse_app_url</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">package_directory</span><span class="p">)</span>
+
+    <span class="n">update_name</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">mt_file</span><span class="p">,</span> <span class="n">fail_on_missing</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">report_unchanged</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="n">process_schemas</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">mt_file</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="n">m</span><span class="o">.</span><span class="n">cache</span><span class="p">,</span> <span class="n">clean</span><span class="o">=</span><span class="n">m</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">clean</span><span class="p">,</span> <span class="n">report_found</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="n">nv_name</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">nonversion_name</span>
+    <span class="n">nv_link</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">nonversion_link</span>
+
+    <span class="c1"># Remove any data that may have been cached , for instance, from Jupyter notebooks</span>
+    <span class="n">rmtree</span><span class="p">(</span><span class="n">get_materialized_data_cache</span><span class="p">(</span><span class="n">doc</span><span class="p">),</span> <span class="n">ignore_errors</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="n">reuse_resources</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">reuse_resources</span>
+
+    <span class="c1"># Always create a filesystem package before ZIP or Excel, so we can use it as a source for</span>
+    <span class="c1"># data for the other packages. This means that Transform processes and programs only need</span>
+    <span class="c1"># to be run once.</span>
+
+    <span class="n">_</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="n">created</span> <span class="o">=</span> <span class="n">make_filesystem_package</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">mt_file</span><span class="p">,</span> <span class="n">m</span><span class="o">.</span><span class="n">package_root</span><span class="p">,</span> <span class="n">m</span><span class="o">.</span><span class="n">cache</span><span class="p">,</span> <span class="n">env</span><span class="p">,</span> <span class="n">m</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">force</span><span class="p">,</span> <span class="kc">False</span><span class="p">,</span>
+                                              <span class="n">nv_link</span><span class="p">,</span> <span class="n">reuse_resources</span><span class="o">=</span><span class="n">reuse_resources</span><span class="p">)</span>
+    <span class="n">create_list</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="s1">&#39;fs&#39;</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="n">created</span><span class="p">))</span>
+
+    <span class="n">lb_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">package_root</span><span class="o">.</span><span class="n">fspath</span><span class="p">,</span> <span class="s1">&#39;last_build&#39;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">created</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">lb_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+        <span class="n">Path</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">package_root</span><span class="o">.</span><span class="n">fspath</span><span class="p">,</span> <span class="s1">&#39;last_build&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">touch</span><span class="p">()</span>
+
+    <span class="n">m</span><span class="o">.</span><span class="n">mt_file</span> <span class="o">=</span> <span class="n">url</span>
+
+    <span class="n">env</span> <span class="o">=</span> <span class="p">{}</span>  <span class="c1"># Don&#39;t need it anymore, since no more programs will be run.</span>
+
+    <span class="k">if</span> <span class="n">m</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">excel</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">False</span><span class="p">:</span>
+        <span class="n">_</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="n">created</span> <span class="o">=</span> <span class="n">make_excel_package</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">mt_file</span><span class="p">,</span> <span class="n">package_dir</span><span class="p">,</span> <span class="n">m</span><span class="o">.</span><span class="n">cache</span><span class="p">,</span> <span class="n">env</span><span class="p">,</span> <span class="n">m</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">force</span><span class="p">,</span> <span class="n">nv_name</span><span class="p">,</span> <span class="n">nv_link</span><span class="p">)</span>
+        <span class="n">create_list</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="s1">&#39;xlsx&#39;</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="n">created</span><span class="p">))</span>
+
+    <span class="k">if</span> <span class="n">m</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">zip</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">False</span><span class="p">:</span>
+        <span class="n">_</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="n">created</span> <span class="o">=</span> <span class="n">make_zip_package</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">mt_file</span><span class="p">,</span> <span class="n">package_dir</span><span class="p">,</span> <span class="n">m</span><span class="o">.</span><span class="n">cache</span><span class="p">,</span> <span class="n">env</span><span class="p">,</span> <span class="n">m</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">force</span><span class="p">,</span> <span class="n">nv_name</span><span class="p">,</span> <span class="n">nv_link</span><span class="p">)</span>
+        <span class="n">create_list</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="s1">&#39;zip&#39;</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="n">created</span><span class="p">))</span>
+
+    <span class="k">if</span> <span class="n">m</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">csv</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">False</span><span class="p">:</span>
+        <span class="n">_</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="n">created</span> <span class="o">=</span> <span class="n">make_csv_package</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">mt_file</span><span class="p">,</span> <span class="n">package_dir</span><span class="p">,</span> <span class="n">m</span><span class="o">.</span><span class="n">cache</span><span class="p">,</span> <span class="n">env</span><span class="p">,</span> <span class="n">m</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">force</span><span class="p">,</span> <span class="n">nv_name</span><span class="p">,</span> <span class="n">nv_link</span><span class="p">)</span>
+        <span class="n">create_list</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="s1">&#39;csv&#39;</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="n">created</span><span class="p">))</span>
+
+    <span class="n">index_packages</span><span class="p">(</span><span class="n">m</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">create_list</span></div>
+
+
+<div class="viewcode-block" id="metatab_admin_handler"><a class="viewcode-back" href="../../../api/metapack_build.cli.html#metapack_build.cli.build.metatab_admin_handler">[docs]</a><span class="k">def</span> <span class="nf">metatab_admin_handler</span><span class="p">(</span><span class="n">m</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">m</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">clean_cache</span><span class="p">:</span>
+        <span class="n">clean_cache</span><span class="p">(</span><span class="s1">&#39;metapack&#39;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="classify_url"><a class="viewcode-back" href="../../../api/metapack_build.cli.html#metapack_build.cli.build.classify_url">[docs]</a><span class="k">def</span> <span class="nf">classify_url</span><span class="p">(</span><span class="n">url</span><span class="p">):</span>
+    <span class="n">ss</span> <span class="o">=</span> <span class="n">parse_app_url</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">ss</span><span class="o">.</span><span class="n">target_format</span> <span class="ow">in</span> <span class="n">DATA_FORMATS</span><span class="p">:</span>
+        <span class="n">term_name</span> <span class="o">=</span> <span class="s1">&#39;DataFile&#39;</span>
+    <span class="k">elif</span> <span class="n">ss</span><span class="o">.</span><span class="n">target_format</span> <span class="ow">in</span> <span class="n">DOC_FORMATS</span><span class="p">:</span>
+        <span class="n">term_name</span> <span class="o">=</span> <span class="s1">&#39;Documentation&#39;</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">term_name</span> <span class="o">=</span> <span class="s1">&#39;Resource&#39;</span>
+
+    <span class="k">return</span> <span class="n">term_name</span></div>
+
+
+<div class="viewcode-block" id="add_resource"><a class="viewcode-back" href="../../../api/metapack_build.cli.html#metapack_build.cli.build.add_resource">[docs]</a><span class="k">def</span> <span class="nf">add_resource</span><span class="p">(</span><span class="n">mt_file</span><span class="p">,</span> <span class="n">ref</span><span class="p">,</span> <span class="n">cache</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Add a resources entry, downloading the intuiting the file, replacing entries with</span>
+<span class="sd">    the same reference&quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">mt_file</span><span class="p">,</span> <span class="n">MetapackDoc</span><span class="p">):</span>
+        <span class="n">doc</span> <span class="o">=</span> <span class="n">mt_file</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">doc</span> <span class="o">=</span> <span class="n">MetapackDoc</span><span class="p">(</span><span class="n">mt_file</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="s1">&#39;Resources&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">doc</span><span class="p">:</span>
+        <span class="n">doc</span><span class="o">.</span><span class="n">new_section</span><span class="p">(</span><span class="s1">&#39;Resources&#39;</span><span class="p">)</span>
+
+    <span class="n">doc</span><span class="p">[</span><span class="s1">&#39;Resources&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">args</span> <span class="o">=</span> <span class="p">[</span><span class="n">e</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="nb">set</span><span class="p">(</span><span class="n">doc</span><span class="p">[</span><span class="s1">&#39;Resources&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">args</span> <span class="o">+</span> <span class="p">[</span><span class="s1">&#39;Name&#39;</span><span class="p">,</span> <span class="s1">&#39;StartLine&#39;</span><span class="p">,</span> <span class="s1">&#39;HeaderLines&#39;</span><span class="p">,</span> <span class="s1">&#39;Encoding&#39;</span><span class="p">])</span> <span class="k">if</span>
+                             <span class="n">e</span><span class="p">]</span>
+
+    <span class="n">seen_names</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+
+    <span class="n">u</span> <span class="o">=</span> <span class="n">parse_app_url</span><span class="p">(</span><span class="n">ref</span><span class="p">)</span>
+
+    <span class="c1"># The web and file URLs don&#39;t list the same.</span>
+
+    <span class="k">if</span> <span class="n">u</span><span class="o">.</span><span class="n">proto</span> <span class="o">==</span> <span class="s1">&#39;file&#39;</span><span class="p">:</span>
+        <span class="n">entries</span> <span class="o">=</span> <span class="n">u</span><span class="o">.</span><span class="n">list</span><span class="p">()</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">entries</span> <span class="o">=</span> <span class="p">[</span><span class="n">ssu</span> <span class="k">for</span> <span class="n">su</span> <span class="ow">in</span> <span class="n">u</span><span class="o">.</span><span class="n">list</span><span class="p">()</span> <span class="k">for</span> <span class="n">ssu</span> <span class="ow">in</span> <span class="n">su</span><span class="o">.</span><span class="n">list</span><span class="p">()]</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">u</span><span class="p">),</span> <span class="n">u</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">entries</span><span class="p">:</span>
+        <span class="n">add_single_resource</span><span class="p">(</span><span class="n">doc</span><span class="p">,</span> <span class="n">e</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="n">cache</span><span class="p">,</span> <span class="n">seen_names</span><span class="o">=</span><span class="n">seen_names</span><span class="p">)</span>
+
+    <span class="n">write_doc</span><span class="p">(</span><span class="n">doc</span><span class="p">,</span> <span class="n">mt_file</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="add_single_resource"><a class="viewcode-back" href="../../../api/metapack_build.cli.html#metapack_build.cli.build.add_single_resource">[docs]</a><span class="k">def</span> <span class="nf">add_single_resource</span><span class="p">(</span><span class="n">doc</span><span class="p">,</span> <span class="n">ref</span><span class="p">,</span> <span class="n">cache</span><span class="p">,</span> <span class="n">seen_names</span><span class="p">):</span>
+    <span class="kn">from</span> <span class="nn">metatab.util</span> <span class="k">import</span> <span class="n">slugify</span>
+
+    <span class="n">t</span> <span class="o">=</span> <span class="n">doc</span><span class="o">.</span><span class="n">find_first</span><span class="p">(</span><span class="s1">&#39;Root.Datafile&#39;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">ref</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">t</span><span class="p">:</span>
+        <span class="n">prt</span><span class="p">(</span><span class="s2">&quot;Datafile exists for &#39;</span><span class="si">{}</span><span class="s2">&#39;, deleting&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">ref</span><span class="p">))</span>
+        <span class="n">doc</span><span class="o">.</span><span class="n">remove_term</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">prt</span><span class="p">(</span><span class="s2">&quot;Adding </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">ref</span><span class="p">))</span>
+
+    <span class="n">term_name</span> <span class="o">=</span> <span class="n">classify_url</span><span class="p">(</span><span class="n">ref</span><span class="p">)</span>
+
+    <span class="n">path</span><span class="p">,</span> <span class="n">name</span> <span class="o">=</span> <span class="n">extract_path_name</span><span class="p">(</span><span class="n">ref</span><span class="p">)</span>
+
+    <span class="c1"># If the name already exists, try to create a new one.</span>
+    <span class="c1"># 20 attempts ought to be enough.</span>
+    <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">seen_names</span><span class="p">:</span>
+        <span class="n">base_name</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;-?\d+$&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">20</span><span class="p">):</span>
+            <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">-</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">base_name</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">seen_names</span><span class="p">:</span>
+                <span class="k">break</span>
+
+    <span class="n">seen_names</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+
+    <span class="n">encoding</span> <span class="o">=</span> <span class="n">start_line</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">header_lines</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">name</span><span class="p">:</span>
+        <span class="kn">from</span> <span class="nn">hashlib</span> <span class="k">import</span> <span class="n">sha1</span>
+        <span class="n">name</span> <span class="o">=</span> <span class="n">sha1</span><span class="p">(</span><span class="n">slugify</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;ascii&#39;</span><span class="p">))</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()[:</span><span class="mi">12</span><span class="p">]</span>
+
+        <span class="c1"># xlrd gets grouchy if the name doesn&#39;t start with a char</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="nb">int</span><span class="p">(</span><span class="n">name</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;a&#39;</span> <span class="o">+</span> <span class="n">name</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="k">pass</span>
+
+    <span class="k">return</span> <span class="n">doc</span><span class="p">[</span><span class="s1">&#39;Resources&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">new_term</span><span class="p">(</span><span class="n">term_name</span><span class="p">,</span> <span class="n">ref</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
+                                     <span class="n">startline</span><span class="o">=</span><span class="n">start_line</span><span class="p">,</span>
+                                     <span class="n">headerlines</span><span class="o">=</span><span class="s1">&#39;,&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">header_lines</span><span class="p">),</span>
+                                     <span class="n">encoding</span><span class="o">=</span><span class="n">encoding</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="run_row_intuit"><a class="viewcode-back" href="../../../api/metapack_build.cli.html#metapack_build.cli.build.run_row_intuit">[docs]</a><span class="k">def</span> <span class="nf">run_row_intuit</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">cache</span><span class="p">):</span>
+    <span class="kn">from</span> <span class="nn">tableintuit</span> <span class="k">import</span> <span class="n">RowIntuiter</span>
+    <span class="kn">from</span> <span class="nn">itertools</span> <span class="k">import</span> <span class="n">islice</span>
+    <span class="kn">from</span> <span class="nn">rowgenerators</span> <span class="k">import</span> <span class="n">TextEncodingError</span><span class="p">,</span> <span class="n">get_generator</span>
+
+    <span class="k">for</span> <span class="n">encoding</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;ascii&#39;</span><span class="p">,</span> <span class="s1">&#39;utf8&#39;</span><span class="p">,</span> <span class="s1">&#39;latin1&#39;</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+
+            <span class="n">u</span> <span class="o">=</span> <span class="n">parse_app_url</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+            <span class="n">u</span><span class="o">.</span><span class="n">encoding</span> <span class="o">=</span> <span class="n">encoding</span>
+
+            <span class="n">rows</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">islice</span><span class="p">(</span><span class="n">get_generator</span><span class="p">(</span><span class="n">url</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">u</span><span class="p">),</span> <span class="n">cache</span><span class="o">=</span><span class="n">cache</span><span class="p">,</span> <span class="p">),</span> <span class="mi">5000</span><span class="p">))</span>
+            <span class="k">return</span> <span class="n">encoding</span><span class="p">,</span> <span class="n">RowIntuiter</span><span class="p">()</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">rows</span><span class="p">))</span>
+        <span class="k">except</span> <span class="p">(</span><span class="n">TextEncodingError</span><span class="p">,</span> <span class="ne">UnicodeEncodeError</span><span class="p">):</span>
+            <span class="k">pass</span>
+
+    <span class="k">raise</span> <span class="n">RowIntuitError</span><span class="p">(</span><span class="s1">&#39;Failed to convert with any encoding&#39;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="index_packages"><a class="viewcode-back" href="../../../api/metapack_build.cli.html#metapack_build.cli.build.index_packages">[docs]</a><span class="k">def</span> <span class="nf">index_packages</span><span class="p">(</span><span class="n">m</span><span class="p">):</span>
+    <span class="kn">from</span> <span class="nn">metapack.cli.index</span> <span class="k">import</span> <span class="n">walk_packages</span>
+    <span class="kn">from</span> <span class="nn">metapack.index</span> <span class="k">import</span> <span class="n">SearchIndex</span><span class="p">,</span> <span class="n">search_index_file</span>
+
+    <span class="n">idx</span> <span class="o">=</span> <span class="n">SearchIndex</span><span class="p">(</span><span class="n">search_index_file</span><span class="p">())</span>
+
+    <span class="n">entries</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">walk_packages</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">parse_app_url</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">package_root</span><span class="o">.</span><span class="n">fspath</span><span class="p">))):</span>
+        <span class="n">prt</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">ref</span><span class="p">)</span>
+        <span class="n">idx</span><span class="o">.</span><span class="n">add_package</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+        <span class="n">entries</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+
+    <span class="n">idx</span><span class="o">.</span><span class="n">write</span><span class="p">()</span>
+    <span class="n">prt</span><span class="p">(</span><span class="s2">&quot;Indexed &quot;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">entries</span><span class="p">),</span> <span class="s1">&#39;entries&#39;</span><span class="p">)</span></div>
+
+
+<span class="n">DATA_FORMATS</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;xls&#39;</span><span class="p">,</span> <span class="s1">&#39;xlsx&#39;</span><span class="p">,</span> <span class="s1">&#39;tsv&#39;</span><span class="p">,</span> <span class="s1">&#39;csv&#39;</span><span class="p">)</span>
+<span class="n">DOC_FORMATS</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;pdf&#39;</span><span class="p">,</span> <span class="s1">&#39;doc&#39;</span><span class="p">,</span> <span class="s1">&#39;docx&#39;</span><span class="p">,</span> <span class="s1">&#39;html&#39;</span><span class="p">)</span>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../index.html">metapack-build</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../license.html">License</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../authors.html">Authors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../changelog.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/modules.html">Module Reference</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Eric Busboom.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.0.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

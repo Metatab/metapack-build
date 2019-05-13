@@ -1,0 +1,70 @@
+metapack\_build.cli package
+===========================
+
+Submodules
+----------
+
+metapack\_build.cli.build module
+--------------------------------
+
+.. automodule:: metapack_build.cli.build
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+metapack\_build.cli.edit module
+-------------------------------
+
+.. automodule:: metapack_build.cli.edit
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+metapack\_build.cli.new module
+------------------------------
+
+.. automodule:: metapack_build.cli.new
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+metapack\_build.cli.s3 module
+-----------------------------
+
+.. automodule:: metapack_build.cli.s3
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+metapack\_build.cli.stats module
+--------------------------------
+
+.. automodule:: metapack_build.cli.stats
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+metapack\_build.cli.update module
+---------------------------------
+
+.. automodule:: metapack_build.cli.update
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+metapack\_build.cli.url module
+------------------------------
+
+.. automodule:: metapack_build.cli.url
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+
+Module contents
+---------------
+
+.. automodule:: metapack_build.cli
+    :members:
+    :undoc-members:
+    :show-inheritance:

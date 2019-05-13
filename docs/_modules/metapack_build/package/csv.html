@@ -1,0 +1,196 @@
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <title>metapack_build.package.csv &#8212; metapack-build 0.0.2 documentation</title>
+    <link rel="stylesheet" href="../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for metapack_build.package.csv</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Copyright (c) 2017 Civic Knowledge. This file is licensed under the terms of the</span>
+<span class="c1"># MIT License, included in this distribution as LICENSE</span>
+
+<span class="sd">&quot;&quot;&quot; &quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">metapack</span> <span class="k">import</span> <span class="n">PackageError</span>
+<span class="kn">from</span> <span class="nn">metapack.util</span> <span class="k">import</span> <span class="n">datetime_now</span>
+<span class="kn">from</span> <span class="nn">metapack_build.package</span> <span class="k">import</span> <span class="n">PackageBuilder</span>
+<span class="kn">from</span> <span class="nn">os.path</span> <span class="k">import</span> <span class="n">abspath</span>
+<span class="kn">from</span> <span class="nn">rowgenerators</span> <span class="k">import</span> <span class="n">parse_app_url</span>
+
+
+<div class="viewcode-block" id="CsvPackageBuilder"><a class="viewcode-back" href="../../../api/metapack_build.package.html#metapack_build.package.csv.CsvPackageBuilder">[docs]</a><span class="k">class</span> <span class="nc">CsvPackageBuilder</span><span class="p">(</span><span class="n">PackageBuilder</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;&quot;&quot;&quot;</span>
+
+    <span class="n">type_code</span> <span class="o">=</span> <span class="s1">&#39;csv&#39;</span>
+    <span class="n">type_suffix</span> <span class="o">=</span> <span class="s1">&#39;.csv&#39;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">source_ref</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">package_root</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">resource_root</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">callback</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">env</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">source_ref</span><span class="p">,</span> <span class="n">package_root</span><span class="p">,</span> <span class="n">callback</span><span class="p">,</span> <span class="n">env</span><span class="p">)</span>
+        <span class="kn">from</span> <span class="nn">metapack</span> <span class="k">import</span> <span class="n">MetapackPackageUrl</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">package_path</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cache_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">make_package_path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">package_root</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">package_name</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">package_root</span><span class="o">.</span><span class="n">proto</span> <span class="o">==</span> <span class="s1">&#39;file&#39;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">package_root</span><span class="o">.</span><span class="n">ensure_dir</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">resource_root</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">resource_root</span> <span class="o">=</span> <span class="n">resource_root</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">resource_root</span> <span class="o">=</span> <span class="n">source_ref</span><span class="o">.</span><span class="n">dirname</span><span class="p">()</span><span class="o">.</span><span class="n">as_type</span><span class="p">(</span><span class="n">MetapackPackageUrl</span><span class="p">)</span>
+
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">resource_root</span><span class="p">,</span> <span class="n">MetapackPackageUrl</span><span class="p">),</span> <span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">resource_root</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">resource_root</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_last_write_path</span> <span class="o">=</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="CsvPackageBuilder.make_package_path"><a class="viewcode-back" href="../../../api/metapack_build.package.html#metapack_build.package.csv.CsvPackageBuilder.make_package_path">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">make_package_path</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">package_root</span><span class="p">,</span> <span class="n">package_name</span><span class="p">):</span>
+
+        <span class="c1"># self.package_path, self.cache_path = self.make_package_path(self.package_name, self.package_root)</span>
+
+        <span class="n">cache_path</span> <span class="o">=</span> <span class="n">package_name</span> <span class="o">+</span> <span class="bp">cls</span><span class="o">.</span><span class="n">type_suffix</span>
+
+        <span class="n">package_path</span> <span class="o">=</span> <span class="n">package_root</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">cache_path</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">package_path</span><span class="p">,</span> <span class="n">cache_path</span></div>
+
+    <span class="k">def</span> <span class="nf">_load_resource</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">source_r</span><span class="p">,</span> <span class="n">abs_path</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;The CSV package has no reseources, so we just need to resolve the URLs to them. Usually, the</span>
+<span class="sd">            CSV package is built from a file system ackage on a publically acessible server. &quot;&quot;&quot;</span>
+
+        <span class="n">r</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">doc</span><span class="o">.</span><span class="n">resource</span><span class="p">(</span><span class="n">source_r</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+
+        <span class="n">r</span><span class="o">.</span><span class="n">url</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">resource_root</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">url</span><span class="p">)</span><span class="o">.</span><span class="n">inner</span>  <span class="c1"># r.resolved_url</span>
+
+    <span class="k">def</span> <span class="nf">_relink_documentation</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+        <span class="k">for</span> <span class="n">doc</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">doc</span><span class="p">[</span><span class="s1">&#39;Documentation&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">find</span><span class="p">([</span><span class="s1">&#39;Root.Documentation&#39;</span><span class="p">,</span> <span class="s1">&#39;Root.Image&#39;</span><span class="p">]):</span>
+            <span class="n">doc</span><span class="o">.</span><span class="n">url</span> <span class="o">=</span> <span class="n">doc</span><span class="o">.</span><span class="n">resolved_url</span>
+
+<div class="viewcode-block" id="CsvPackageBuilder.save"><a class="viewcode-back" href="../../../api/metapack_build.package.html#metapack_build.package.csv.CsvPackageBuilder.save">[docs]</a>    <span class="k">def</span> <span class="nf">save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="kn">from</span> <span class="nn">metapack</span> <span class="k">import</span> <span class="n">MetapackPackageUrl</span>
+
+        <span class="c1"># HACK ...</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">doc</span><span class="o">.</span><span class="n">ref</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">doc</span><span class="o">.</span><span class="n">_ref</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">package_path</span>  <span class="c1"># Really should not do this but ...</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_is_ready</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">load_declares</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">doc</span><span class="o">.</span><span class="n">cleanse</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_load_resources</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_relink_documentation</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_clean_doc</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">package_path</span><span class="o">.</span><span class="n">inner</span><span class="o">.</span><span class="n">proto</span> <span class="o">==</span> <span class="s1">&#39;file&#39;</span><span class="p">:</span>
+                <span class="n">path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">package_path</span><span class="o">.</span><span class="n">path</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">PackageError</span><span class="p">(</span><span class="s2">&quot;Can&#39;t write doc to path: &#39;</span><span class="si">{}</span><span class="s2">&#39;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">path</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">doc</span><span class="p">[</span><span class="s1">&#39;Root&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">get_or_new_term</span><span class="p">(</span><span class="s1">&#39;Root.Issued&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">datetime_now</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_last_write_path</span> <span class="o">=</span> <span class="n">path</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">doc</span><span class="o">.</span><span class="n">write_csv</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">parse_app_url</span><span class="p">(</span><span class="n">abspath</span><span class="p">(</span><span class="n">path</span><span class="p">))</span><span class="o">.</span><span class="n">as_type</span><span class="p">(</span><span class="n">MetapackPackageUrl</span><span class="p">)</span></div></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../index.html">metapack-build</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../license.html">License</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../authors.html">Authors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../changelog.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/modules.html">Module Reference</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Eric Busboom.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.0.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

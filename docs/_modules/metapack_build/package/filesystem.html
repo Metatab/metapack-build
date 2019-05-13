@@ -1,0 +1,414 @@
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <title>metapack_build.package.filesystem &#8212; metapack-build 0.0.2 documentation</title>
+    <link rel="stylesheet" href="../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for metapack_build.package.filesystem</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Copyright (c) 2017 Civic Knowledge. This file is licensed under the terms of the</span>
+<span class="c1"># MIT License, included in this distribution as LICENSE</span>
+
+<span class="sd">&quot;&quot;&quot; &quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">shutil</span>
+<span class="kn">from</span> <span class="nn">genericpath</span> <span class="k">import</span> <span class="n">exists</span><span class="p">,</span> <span class="n">getmtime</span>
+<span class="kn">from</span> <span class="nn">metapack.appurl</span> <span class="k">import</span> <span class="n">MetapackUrl</span>
+<span class="kn">from</span> <span class="nn">metapack.util</span> <span class="k">import</span> <span class="n">datetime_now</span><span class="p">,</span> <span class="n">ensure_dir</span><span class="p">,</span> <span class="n">slugify</span>
+<span class="kn">from</span> <span class="nn">metatab</span> <span class="k">import</span> <span class="n">DEFAULT_METATAB_FILE</span>
+<span class="kn">from</span> <span class="nn">metatab.datapackage</span> <span class="k">import</span> <span class="n">convert_to_datapackage</span>
+<span class="kn">from</span> <span class="nn">nbconvert.writers</span> <span class="k">import</span> <span class="n">FilesWriter</span>
+<span class="kn">from</span> <span class="nn">os</span> <span class="k">import</span> <span class="n">makedirs</span><span class="p">,</span> <span class="n">remove</span>
+<span class="kn">from</span> <span class="nn">os.path</span> <span class="k">import</span> <span class="n">dirname</span><span class="p">,</span> <span class="n">join</span>
+<span class="kn">from</span> <span class="nn">rowgenerators</span> <span class="k">import</span> <span class="n">parse_app_url</span>
+
+<span class="kn">from</span> <span class="nn">.core</span> <span class="k">import</span> <span class="n">PackageBuilder</span>
+
+
+<div class="viewcode-block" id="count_decl"><a class="viewcode-back" href="../../../api/metapack_build.package.html#metapack_build.package.filesystem.count_decl">[docs]</a><span class="k">def</span> <span class="nf">count_decl</span><span class="p">(</span><span class="n">doc</span><span class="p">):</span>
+    <span class="n">decls</span> <span class="o">=</span> <span class="n">doc</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;Root.Declare&#39;</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">doc</span><span class="o">.</span><span class="n">terms</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">decls</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">,</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">decls</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">doc</span><span class="o">.</span><span class="n">terms</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="FileSystemPackageBuilder"><a class="viewcode-back" href="../../../api/metapack_build.package.html#metapack_build.package.filesystem.FileSystemPackageBuilder">[docs]</a><span class="k">class</span> <span class="nc">FileSystemPackageBuilder</span><span class="p">(</span><span class="n">PackageBuilder</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Build a filesystem package&quot;&quot;&quot;</span>
+
+    <span class="n">type_code</span> <span class="o">=</span> <span class="s1">&#39;fs&#39;</span>
+    <span class="n">type_suffix</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">source_ref</span><span class="p">,</span> <span class="n">package_root</span><span class="p">,</span> <span class="n">callback</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">env</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">reuse_resources</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">source_ref</span><span class="p">,</span> <span class="n">package_root</span><span class="p">,</span> <span class="n">callback</span><span class="p">,</span> <span class="n">env</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">package_root</span><span class="o">.</span><span class="n">isdir</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">package_root</span><span class="o">.</span><span class="n">ensure_dir</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">reuse_resources</span> <span class="o">=</span> <span class="n">reuse_resources</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">package_path</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cache_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">make_package_path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">package_root</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">package_name</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">doc_file</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">package_path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">DEFAULT_METATAB_FILE</span><span class="p">)</span>
+
+<div class="viewcode-block" id="FileSystemPackageBuilder.make_package_path"><a class="viewcode-back" href="../../../api/metapack_build.package.html#metapack_build.package.filesystem.FileSystemPackageBuilder.make_package_path">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">make_package_path</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">package_root</span><span class="p">,</span> <span class="n">package_name</span><span class="p">):</span>
+
+        <span class="n">cache_path</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">package_name</span><span class="p">,</span> <span class="n">DEFAULT_METATAB_FILE</span><span class="p">)</span>
+
+        <span class="n">package_path</span> <span class="o">=</span> <span class="n">package_root</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">package_name</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">package_path</span><span class="p">,</span> <span class="n">cache_path</span></div>
+
+<div class="viewcode-block" id="FileSystemPackageBuilder.exists"><a class="viewcode-back" href="../../../api/metapack_build.package.html#metapack_build.package.filesystem.FileSystemPackageBuilder.exists">[docs]</a>    <span class="k">def</span> <span class="nf">exists</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">doc_file</span><span class="o">.</span><span class="n">path</span>
+        <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">doc_file</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">package_path</span><span class="o">.</span><span class="n">isdir</span><span class="p">()</span> <span class="ow">and</span> <span class="n">exists</span><span class="p">(</span><span class="n">path</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="FileSystemPackageBuilder.remove"><a class="viewcode-back" href="../../../api/metapack_build.package.html#metapack_build.package.filesystem.FileSystemPackageBuilder.remove">[docs]</a>    <span class="k">def</span> <span class="nf">remove</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">package_path</span><span class="o">.</span><span class="n">is_dir</span><span class="p">():</span>
+            <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">package_path</span><span class="o">.</span><span class="n">path</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="FileSystemPackageBuilder.package_build_time"><a class="viewcode-back" href="../../../api/metapack_build.package.html#metapack_build.package.filesystem.FileSystemPackageBuilder.package_build_time">[docs]</a>    <span class="k">def</span> <span class="nf">package_build_time</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="kn">from</span> <span class="nn">genericpath</span> <span class="k">import</span> <span class="n">getmtime</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">doc_file</span><span class="o">.</span><span class="n">path</span>
+        <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">doc_file</span>
+
+        <span class="k">return</span> <span class="n">getmtime</span><span class="p">(</span><span class="n">path</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="FileSystemPackageBuilder.is_older_than_metadata"><a class="viewcode-back" href="../../../api/metapack_build.package.html#metapack_build.package.filesystem.FileSystemPackageBuilder.is_older_than_metadata">[docs]</a>    <span class="k">def</span> <span class="nf">is_older_than_metadata</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return True if the package save file is older than the metadata. If it is, it should be rebuilt.  Returns</span>
+<span class="sd">        False if the time of either can&#39;t be determined</span>
+
+<span class="sd">        :param path: Optional extra save path, used in save_path()</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">doc_file</span><span class="o">.</span><span class="n">path</span>
+        <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">doc_file</span>
+
+        <span class="n">source_ref</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_doc</span><span class="o">.</span><span class="n">ref</span><span class="o">.</span><span class="n">path</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">age_diff</span> <span class="o">=</span> <span class="n">getmtime</span><span class="p">(</span><span class="n">source_ref</span><span class="p">)</span> <span class="o">-</span> <span class="n">getmtime</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+
+            <span class="k">return</span> <span class="n">age_diff</span> <span class="o">&gt;</span> <span class="mi">0</span>
+
+        <span class="k">except</span> <span class="p">(</span><span class="ne">FileNotFoundError</span><span class="p">,</span> <span class="ne">OSError</span><span class="p">):</span>
+            <span class="k">return</span> <span class="kc">False</span></div>
+
+<div class="viewcode-block" id="FileSystemPackageBuilder.save"><a class="viewcode-back" href="../../../api/metapack_build.package.html#metapack_build.package.filesystem.FileSystemPackageBuilder.save">[docs]</a>    <span class="k">def</span> <span class="nf">save</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_is_ready</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">sections</span><span class="o">.</span><span class="n">resources</span><span class="o">.</span><span class="n">sort_by_term</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">doc</span><span class="o">.</span><span class="n">cleanse</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">load_declares</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_load_documentation_files</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_load_resources</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_load_files</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_write_dpj</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_clean_doc</span><span class="p">()</span>
+
+        <span class="n">doc_file</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_write_doc</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_write_html</span><span class="p">()</span>  <span class="c1"># Why does this happen after _write_doc?</span>
+
+        <span class="k">return</span> <span class="n">doc_file</span></div>
+
+    <span class="k">def</span> <span class="nf">_write_doc</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_doc</span><span class="p">[</span><span class="s1">&#39;Root&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">get_or_new_term</span><span class="p">(</span><span class="s1">&#39;Root.Issued&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">datetime_now</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_doc</span><span class="o">.</span><span class="n">write_csv</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">doc_file</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">MetapackUrl</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">doc_file</span><span class="p">,</span> <span class="n">downloader</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_downloader</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_write_dpj</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">package_path</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;datapackage.json&#39;</span><span class="p">),</span> <span class="s1">&#39;w&#39;</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">convert_to_datapackage</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_doc</span><span class="p">),</span> <span class="n">indent</span><span class="o">=</span><span class="mi">4</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">_write_html</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">package_path</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;index.html&#39;</span><span class="p">),</span> <span class="s1">&#39;w&#39;</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_doc</span><span class="o">.</span><span class="n">html</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_load_resource</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">source_r</span><span class="p">,</span> <span class="n">abs_path</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;The CSV package has no resources, so we just need to resolve the URLs to them. Usually, the</span>
+<span class="sd">            CSV package is built from a file system ackage on a publically acessible server. &quot;&quot;&quot;</span>
+
+        <span class="kn">from</span> <span class="nn">itertools</span> <span class="k">import</span> <span class="n">islice</span>
+        <span class="kn">from</span> <span class="nn">metapack.exc</span> <span class="k">import</span> <span class="n">MetapackError</span>
+
+        <span class="c1"># Refetch the resource ... IIRC b/c the source_r resource may actually be from</span>
+        <span class="c1"># a different package. So r is the resource we want to possibly modify in this package,</span>
+        <span class="c1"># while source_r is from a different souce package, whose data is being loaded into this</span>
+        <span class="c1"># one.</span>
+
+        <span class="n">r</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">datafile</span><span class="p">(</span><span class="n">source_r</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">reuse_resources</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">prt</span><span class="p">(</span><span class="s2">&quot;Re-using data for &#39;</span><span class="si">{}</span><span class="s2">&#39; &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">name</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">prt</span><span class="p">(</span><span class="s2">&quot;Loading data for &#39;</span><span class="si">{}</span><span class="s2">&#39; &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">name</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">r</span><span class="o">.</span><span class="n">name</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">MetapackError</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Resource/reference term has no name: {str(r)}&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Special handing for SQL should not be done here; it should be done in Rowgenerators, probably.</span>
+        <span class="k">if</span> <span class="n">r</span><span class="o">.</span><span class="n">term_is</span><span class="p">(</span><span class="s1">&#39;root.sql&#39;</span><span class="p">):</span>
+            <span class="n">new_r</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">doc</span><span class="p">[</span><span class="s1">&#39;Resources&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">new_term</span><span class="p">(</span><span class="s1">&#39;Root.Datafile&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span>
+            <span class="n">new_r</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">name</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">doc</span><span class="o">.</span><span class="n">remove_term</span><span class="p">(</span><span class="n">r</span><span class="p">)</span>
+
+            <span class="n">r</span> <span class="o">=</span> <span class="n">new_r</span>
+
+        <span class="n">r</span><span class="o">.</span><span class="n">url</span> <span class="o">=</span> <span class="s1">&#39;data/&#39;</span> <span class="o">+</span> <span class="n">r</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s1">&#39;.csv&#39;</span>  <span class="c1"># Re-writing the URL for the resource.</span>
+
+        <span class="n">path</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">package_path</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="n">r</span><span class="o">.</span><span class="n">url</span><span class="p">)</span>
+
+        <span class="n">makedirs</span><span class="p">(</span><span class="n">dirname</span><span class="p">(</span><span class="n">path</span><span class="p">),</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">reuse_resources</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">exists</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">reuse_resources</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">prt</span><span class="p">(</span><span class="s2">&quot;Resource </span><span class="si">{}</span><span class="s2"> doesn&#39;t exist, rebuilding&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">path</span><span class="p">))</span>
+
+            <span class="k">if</span> <span class="n">exists</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+                <span class="n">remove</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+
+            <span class="n">gen</span> <span class="o">=</span> <span class="n">islice</span><span class="p">(</span><span class="n">source_r</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="n">headers</span> <span class="o">=</span> <span class="n">source_r</span><span class="o">.</span><span class="n">headers</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">write_csv</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">headers</span><span class="p">,</span> <span class="n">gen</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">source_r</span><span class="o">.</span><span class="n">post_iter_meta</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">r</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">source_r</span><span class="o">.</span><span class="n">errors</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">col_name</span><span class="p">,</span> <span class="n">errors</span> <span class="ow">in</span> <span class="n">source_r</span><span class="o">.</span><span class="n">errors</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;ERRORS for column &#39;</span><span class="si">{}</span><span class="s2">&#39; &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">col_name</span><span class="p">))</span>
+                    <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">islice</span><span class="p">(</span><span class="n">errors</span><span class="p">,</span> <span class="mi">5</span><span class="p">):</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s1">&#39;   </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">errors</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">5</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;... and </span><span class="si">{}</span><span class="s2"> more &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">errors</span><span class="p">)</span> <span class="o">-</span> <span class="mi">5</span><span class="p">))</span>
+        <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+            <span class="k">pass</span>  <span class="c1"># Maybe generator does not track errors</span>
+
+        <span class="k">if</span> <span class="n">source_r</span><span class="o">.</span><span class="n">errors</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">err</span><span class="p">(</span><span class="s2">&quot;Resource processing generated conversion errors&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Writing between resources so row-generating programs and notebooks can</span>
+        <span class="c1"># access previously created resources. We have to clean the doc before writing it</span>
+
+        <span class="n">ref</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_write_doc</span><span class="p">()</span>
+
+        <span class="c1"># What a wreck ... we also have to get rid of the &#39;Transform&#39; values, since the CSV files</span>
+        <span class="c1"># that are written don&#39;t need them, and a lot of intermediate processsing ( specifically,</span>
+        <span class="c1"># jupyter Notebooks, ) does not load them.</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="n">FileSystemPackageBuilder</span><span class="p">(</span><span class="n">ref</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">package_root</span><span class="p">)</span>
+        <span class="n">p</span><span class="o">.</span><span class="n">_clean_doc</span><span class="p">()</span>
+
+        <span class="n">ref</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">_write_doc</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_load_documentation_files</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+        <span class="kn">from</span> <span class="nn">metapack_jupyter.exporters</span> <span class="k">import</span> <span class="n">DocumentationExporter</span>
+
+        <span class="n">notebook_docs</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="c1"># First find and remove notebooks from the docs. These wil get processed to create</span>
+        <span class="c1"># normal documents.</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">term</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">doc</span><span class="p">[</span><span class="s1">&#39;Documentation&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;Root.Documentation&#39;</span><span class="p">)):</span>
+                <span class="n">u</span> <span class="o">=</span> <span class="n">parse_app_url</span><span class="p">(</span><span class="n">term</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">u</span><span class="o">.</span><span class="n">target_format</span> <span class="o">==</span> <span class="s1">&#39;ipynb&#39;</span> <span class="ow">and</span> <span class="n">u</span><span class="o">.</span><span class="n">proto</span> <span class="o">==</span> <span class="s1">&#39;file&#39;</span><span class="p">:</span>
+                    <span class="n">notebook_docs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">term</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">doc</span><span class="o">.</span><span class="n">remove_term</span><span class="p">(</span><span class="n">term</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;No documentation defined in metadata&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Process all of the normal files</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">_load_documentation_files</span><span class="p">()</span>
+
+        <span class="n">fw</span> <span class="o">=</span> <span class="n">FilesWriter</span><span class="p">()</span>
+        <span class="n">fw</span><span class="o">.</span><span class="n">build_directory</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">package_path</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;docs&#39;</span><span class="p">)</span>
+
+        <span class="c1"># Now, generate the notebook documents directly into the filesystem package</span>
+        <span class="k">for</span> <span class="n">term</span> <span class="ow">in</span> <span class="n">notebook_docs</span><span class="p">:</span>
+
+            <span class="n">de</span> <span class="o">=</span> <span class="n">DocumentationExporter</span><span class="p">(</span><span class="n">base_name</span><span class="o">=</span><span class="n">term</span><span class="o">.</span><span class="n">name</span> <span class="ow">or</span> <span class="n">slugify</span><span class="p">(</span><span class="n">term</span><span class="o">.</span><span class="n">title</span><span class="p">))</span>
+
+            <span class="n">u</span> <span class="o">=</span> <span class="n">parse_app_url</span><span class="p">(</span><span class="n">term</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
+
+            <span class="n">nb_path</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">source_dir</span><span class="p">,</span> <span class="n">u</span><span class="o">.</span><span class="n">path</span><span class="p">)</span>  <span class="c1"># Only works if the path is relative.</span>
+
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">output</span><span class="p">,</span> <span class="n">resources</span> <span class="o">=</span> <span class="n">de</span><span class="o">.</span><span class="n">from_filename</span><span class="p">(</span><span class="n">nb_path</span><span class="p">)</span>
+                <span class="n">fw</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="n">resources</span><span class="p">,</span> <span class="n">notebook_name</span><span class="o">=</span><span class="n">de</span><span class="o">.</span><span class="n">base_name</span> <span class="o">+</span> <span class="s1">&#39;_full&#39;</span><span class="p">)</span>  <span class="c1"># Write notebook html with inputs</span>
+
+                <span class="n">de</span><span class="o">.</span><span class="n">update_metatab</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">doc</span><span class="p">,</span> <span class="n">resources</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="kn">from</span> <span class="nn">metapack.cli.core</span> <span class="k">import</span> <span class="n">warn</span>
+                <span class="n">warn</span><span class="p">(</span><span class="s2">&quot;Failed to convert document for </span><span class="si">{}</span><span class="s2">: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">term</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">e</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">_load_documentation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">term</span><span class="p">,</span> <span class="n">contents</span><span class="p">,</span> <span class="n">file_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Load a single documentation entry&quot;&quot;&quot;</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">title</span> <span class="o">=</span> <span class="n">term</span><span class="p">[</span><span class="s1">&#39;title&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">value</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;Documentation has no title, skipping: &#39;</span><span class="si">{}</span><span class="s2">&#39; &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">term</span><span class="o">.</span><span class="n">value</span><span class="p">))</span>
+            <span class="k">return</span>
+
+        <span class="k">if</span> <span class="n">term</span><span class="o">.</span><span class="n">term_is</span><span class="p">(</span><span class="s1">&#39;Root.Readme&#39;</span><span class="p">):</span>  <span class="c1"># This term type has inline content, not a url</span>
+            <span class="n">package_sub_dir</span> <span class="o">=</span> <span class="s1">&#39;docs&#39;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">eu</span> <span class="o">=</span> <span class="n">term</span><span class="o">.</span><span class="n">expanded_url</span>
+                <span class="n">parsed_url</span> <span class="o">=</span> <span class="n">term</span><span class="o">.</span><span class="n">parsed_url</span>
+            <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+                <span class="n">parsed_url</span> <span class="o">=</span> <span class="n">eu</span> <span class="o">=</span> <span class="n">parse_app_url</span><span class="p">(</span><span class="n">term</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
+
+            <span class="c1"># Can&#39;t used expanded_url here because expansion makes file system URLS absolute.</span>
+            <span class="k">if</span> <span class="n">eu</span><span class="o">.</span><span class="n">proto</span> <span class="o">==</span> <span class="s1">&#39;file&#39;</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">parsed_url</span><span class="o">.</span><span class="n">path_is_absolute</span><span class="p">:</span>
+                <span class="n">package_sub_dir</span> <span class="o">=</span> <span class="n">parsed_url</span><span class="o">.</span><span class="n">fspath</span><span class="o">.</span><span class="n">parent</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">package_sub_dir</span> <span class="o">=</span> <span class="s1">&#39;docs&#39;</span>
+
+        <span class="n">path</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">package_path</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="n">package_sub_dir</span><span class="p">,</span> <span class="n">file_name</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">prt</span><span class="p">(</span><span class="s2">&quot;Loading documentation for &#39;</span><span class="si">{}</span><span class="s2">&#39;, &#39;</span><span class="si">{}</span><span class="s2">&#39; to &#39;</span><span class="si">{}</span><span class="s2">&#39;  &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">title</span><span class="p">,</span> <span class="n">file_name</span><span class="p">,</span> <span class="n">path</span><span class="p">))</span>
+
+        <span class="n">makedirs</span><span class="p">(</span><span class="n">dirname</span><span class="p">(</span><span class="n">path</span><span class="p">),</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">exists</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+            <span class="n">remove</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">contents</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_load_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">contents</span><span class="p">):</span>
+
+        <span class="k">if</span> <span class="s2">&quot;__pycache__&quot;</span> <span class="ow">in</span> <span class="n">filename</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="n">path</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">package_path</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="n">filename</span><span class="p">)</span>
+
+        <span class="n">ensure_dir</span><span class="p">(</span><span class="n">dirname</span><span class="p">(</span><span class="n">path</span><span class="p">))</span>
+
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">contents</span><span class="p">)</span></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../index.html">metapack-build</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../license.html">License</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../authors.html">Authors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../changelog.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/modules.html">Module Reference</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Eric Busboom.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.0.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>
