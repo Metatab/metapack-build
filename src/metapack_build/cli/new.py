@@ -33,7 +33,7 @@ def new_args(subparsers):
 
         mp new -o metatab.org -d tutorial -T "Quickstart Example Package"
 
-    The :option:`-C` option will set a configuration file, which is a
+    The ``-C`` option will set a configuration file, which is a
     Metatab file that with terms that are copied into the `metadata.csv` file
     of the new package. Currently, it copies a limited number of terms,
      including:

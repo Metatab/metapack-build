@@ -4,7 +4,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta charset="utf-8" />
-    <title>&lt;no title&gt; &#8212; metapack-build 0.0.2 documentation</title>
+    <title>Geographic Data &#8212; metapack-build 0.0.2 documentation</title>
     <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
@@ -14,6 +14,8 @@
     <script type="text/javascript" src="../_static/language_data.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Guide to Wrangling Metatab Packages" href="WranglingPackages.html" />
+    <link rel="prev" title="Row Transforms" href="Transforms.html" />
    
   <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
   
@@ -30,7 +32,9 @@
 
           <div class="body" role="main">
             
-  <p>For Geographic datafiles, You can add a Datafile.Projection property to set the
+  <div class="section" id="geographic-data">
+<h1>Geographic Data<a class="headerlink" href="#geographic-data" title="Permalink to this headline">¶</a></h1>
+<p>For Geographic datafiles, You can add a Datafile.Projection property to set the
 projection. If it specifies a particular projection, it must be an EPSG value,
 prefixed with ‘epsg:’, such as: ‘epsg:4269’. If this projection is different
 than the soruce, the data will be projected while it is loaded.</p>
@@ -38,6 +42,7 @@ than the soruce, the data will be projected while it is loaded.</p>
 be projected, and the <cite>Datafile.Projection</cite> value will be replaced with the
 source projection code in built packages. THe property will be added to the
 Datafile term if it does not exist.</p>
+</div>
 
 
           </div>
@@ -56,17 +61,27 @@ Datafile term if it does not exist.</p>
 
 
 <h3>Navigation</h3>
-<ul>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="GettingStarted.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="GeneratingRows.html">Generating rows with functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Transforms.html">Altering rows with transforms</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Geographic data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="WranglingPackages.html">Basic Data Wranging</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../license.html">License</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../authors.html">Authors</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../changelog.html">Changelog</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../api/modules.html">Module Reference</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../commands.html">Metapack Buld Commands</a></li>
 </ul>
 
 <div class="relations">
 <h3>Related Topics</h3>
 <ul>
   <li><a href="../index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="Transforms.html" title="previous chapter">Row Transforms</a></li>
+      <li>Next: <a href="WranglingPackages.html" title="next chapter">Guide to Wrangling Metatab Packages</a></li>
   </ul></li>
 </ul>
 </div>

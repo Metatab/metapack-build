@@ -48,7 +48,7 @@ formatting of the metadata, and the generated HTML documentation in
 :file:`metatab.org-tutorial-1/index.html`
 
 That's just a quick preview of how the system works. For more details see
-:doc:`GettingStarted`.
+:doc:`build/GettingStarted`.
 
 
 
@@ -58,6 +58,11 @@ Contents
 .. toctree::
    :maxdepth: 2
 
+   Getting Started <build/GettingStarted>
+   Generating rows with functions <build/GeneratingRows>    
+   Altering rows with transforms <build/Transforms>   
+   Geographic data <build/Geographic>
+   Basic Data Wranging <build/WranglingPackages> 
    License <license>
    Authors <authors>
    Changelog <changelog>
@@ -67,9 +72,10 @@ Contents
 CLI Commands
 ============
 
-* :doc:`new <cli/new>`. Create a new Metapack Package
-* :doc:`update<cli/update>` . Update a Metatab file
-* :doc:`update<cli/update>` . Update a Metatab file
+.. toctree::
+   :maxdepth: 2
+
+   commands
 
 
 Indices and tables

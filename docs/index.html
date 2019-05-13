@@ -14,7 +14,7 @@
     <script type="text/javascript" src="_static/language_data.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="License" href="license.html" />
+    <link rel="next" title="Getting Started" href="build/GettingStarted.html" />
    
   <link rel="stylesheet" href="_static/custom.css" type="text/css" />
   
@@ -66,12 +66,38 @@ $ mp info -s metatab.org-tutorial-1.zip#random_names
 formatting of the metadata, and the generated HTML documentation in
 <code class="file docutils literal notranslate"><span class="pre">metatab.org-tutorial-1/index.html</span></code></p>
 <p>That’s just a quick preview of how the system works. For more details see
-<span class="xref std std-doc">GettingStarted</span>.</p>
+<a class="reference internal" href="build/GettingStarted.html"><span class="doc">Getting Started</span></a>.</p>
 </div>
 <div class="section" id="contents">
 <h2>Contents<a class="headerlink" href="#contents" title="Permalink to this headline">¶</a></h2>
 <div class="toctree-wrapper compound">
 <ul>
+<li class="toctree-l1"><a class="reference internal" href="build/GettingStarted.html">Getting Started</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="build/GettingStarted.html#install">Install</a></li>
+<li class="toctree-l2"><a class="reference internal" href="build/GettingStarted.html#creating-packages-with-metapack">Creating Packages with Metapack</a></li>
+<li class="toctree-l2"><a class="reference internal" href="build/GettingStarted.html#creating-a-new-package">Creating a new package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="build/GettingStarted.html#adding-data-references">Adding Data References</a></li>
+<li class="toctree-l2"><a class="reference internal" href="build/GettingStarted.html#adding-row-generators">Adding Row Generators</a></li>
+<li class="toctree-l2"><a class="reference internal" href="build/GettingStarted.html#building-packages">Building Packages</a></li>
+<li class="toctree-l2"><a class="reference internal" href="build/GettingStarted.html#referencing-metatab-files">Referencing Metatab Files</a></li>
+<li class="toctree-l2"><a class="reference internal" href="build/GettingStarted.html#examining-packages">Examining Packages</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="build/GeneratingRows.html">Generating rows with functions</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="build/GeneratingRows.html#generating-rows-with-functions">Generating Rows With Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="build/GeneratingRows.html#generating-rows-with-programs">Generating Rows With Programs</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="build/Transforms.html">Altering rows with transforms</a></li>
+<li class="toctree-l1"><a class="reference internal" href="build/Geographic.html">Geographic data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="build/WranglingPackages.html">Basic Data Wranging</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="build/WranglingPackages.html#setting-the-name">Setting the Name</a></li>
+<li class="toctree-l2"><a class="reference internal" href="build/WranglingPackages.html#adding-properties-to-sections">Adding Properties to Sections</a></li>
+<li class="toctree-l2"><a class="reference internal" href="build/WranglingPackages.html#groups-and-tags">Groups and Tags</a></li>
+<li class="toctree-l2"><a class="reference internal" href="build/WranglingPackages.html#schemas">Schemas</a></li>
+<li class="toctree-l2"><a class="reference internal" href="build/WranglingPackages.html#testing-packages">Testing Packages</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="license.html">License</a></li>
 <li class="toctree-l1"><a class="reference internal" href="authors.html">Authors</a></li>
 <li class="toctree-l1"><a class="reference internal" href="changelog.html">Changelog</a><ul>
@@ -87,11 +113,16 @@ formatting of the metadata, and the generated HTML documentation in
 </div>
 <div class="section" id="cli-commands">
 <h2>CLI Commands<a class="headerlink" href="#cli-commands" title="Permalink to this headline">¶</a></h2>
-<ul class="simple">
-<li><p><a class="reference internal" href="cli/new.html"><span class="doc">new</span></a>. Create a new Metapack Package</p></li>
-<li><p><a class="reference internal" href="cli/update.html"><span class="doc">update</span></a> . Update a Metatab file</p></li>
-<li><p><a class="reference internal" href="cli/update.html"><span class="doc">update</span></a> . Update a Metatab file</p></li>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="commands.html">Metapack Buld Commands</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="commands.html#new-creating-new-packages">new: Creating New Packages</a></li>
+<li class="toctree-l2"><a class="reference internal" href="commands.html#update-update-package-information">update: Update Package Information</a></li>
+<li class="toctree-l2"><a class="reference internal" href="commands.html#build-create-distribution-packages">Build: Create distribution Packages</a></li>
 </ul>
+</li>
+</ul>
+</div>
 </div>
 <div class="section" id="indices-and-tables">
 <h2>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Permalink to this headline">¶</a></h2>
@@ -121,17 +152,25 @@ formatting of the metadata, and the generated HTML documentation in
 
 <h3>Navigation</h3>
 <ul>
+<li class="toctree-l1"><a class="reference internal" href="build/GettingStarted.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="build/GeneratingRows.html">Generating rows with functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="build/Transforms.html">Altering rows with transforms</a></li>
+<li class="toctree-l1"><a class="reference internal" href="build/Geographic.html">Geographic data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="build/WranglingPackages.html">Basic Data Wranging</a></li>
 <li class="toctree-l1"><a class="reference internal" href="license.html">License</a></li>
 <li class="toctree-l1"><a class="reference internal" href="authors.html">Authors</a></li>
 <li class="toctree-l1"><a class="reference internal" href="changelog.html">Changelog</a></li>
 <li class="toctree-l1"><a class="reference internal" href="api/modules.html">Module Reference</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="commands.html">Metapack Buld Commands</a></li>
 </ul>
 
 <div class="relations">
 <h3>Related Topics</h3>
 <ul>
   <li><a href="#">Documentation overview</a><ul>
-      <li>Next: <a href="license.html" title="next chapter">License</a></li>
+      <li>Next: <a href="build/GettingStarted.html" title="next chapter">Getting Started</a></li>
   </ul></li>
 </ul>
 </div>

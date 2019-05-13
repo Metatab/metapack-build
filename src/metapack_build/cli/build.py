@@ -56,8 +56,8 @@ def build(subparsers):
         $ mp build -fezc
 
     By default, packages are built with versioned names. The
-    :option:`--nonversion-name` option will create file packages with
-    non-versioned name, and the :option:`--nonversioned-link` option will
+    ``--nonversion-name`` option will create file packages with
+    non-versioned name, and the ``--nonversioned-link`` option will
     produce a non-versioned soft link pointing to the versioned file.
 
 
