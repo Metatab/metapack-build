@@ -7,8 +7,8 @@
 """
 import os
 
-from metapack import MetapackPackageUrl, MetapackUrl
-from metapack.cli.core import prt, write_doc
+from metapack import MetapackPackageUrl, MetapackUrl, open_package
+from metapack.cli.core import prt, write_doc, find_packages
 from metatab import DEFAULT_METATAB_FILE
 from rowgenerators import parse_app_url
 
@@ -182,3 +182,23 @@ def create_s3_csv_package(m, dist_urls, fs_p):
         fs_p.files_processed += [[*m.bucket.last_reason, nv_access_url, s3_path]]
 
     return access_url
+
+
+def generate_packages(m):
+    for ptype, purl, cache_path in find_packages(m.doc.get_value('Root.Name'), m.package_root):
+        yield ptype, purl, cache_path
+
+
+def find_csv_packages(m, downloader):
+    """Locate the build CSV package, which will have distributions if it was generated  as
+    an S3 package"""
+    from metapack_build.package import CsvPackageBuilder
+
+    pkg_dir = m.package_root
+    name = m.doc.get_value('Root.Name')
+
+    package_path, cache_path = CsvPackageBuilder.make_package_path(pkg_dir, name)
+
+    if package_path.exists():
+        r = open_package(package_path, downloader=downloader)
+        return r

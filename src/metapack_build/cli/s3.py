@@ -11,12 +11,12 @@ from os.path import basename
 
 from botocore.exceptions import NoCredentialsError
 from metapack import MetapackDoc, MetapackPackageUrl, MetapackUrl, open_package
-from metapack.cli.core import err, generate_packages, prt
+from metapack.cli.core import err, prt
 from metapack.constants import PACKAGE_PREFIX
 from metapack.index import SearchIndex, search_index_file
 from metapack.package import Downloader
 from metapack.util import datetime_now
-from metapack_build.build import create_s3_csv_package, make_s3_package
+from metapack_build.build import create_s3_csv_package, make_s3_package, generate_packages
 from metapack_build.package.s3 import S3Bucket
 from metatab import DEFAULT_METATAB_FILE
 from rowgenerators import parse_app_url
