@@ -2,13 +2,11 @@
 # MIT License, included in this distribution as LICENSE
 
 """
-
-
 """
 import os
 
 from metapack import MetapackPackageUrl, MetapackUrl, open_package
-from metapack.cli.core import prt, write_doc, find_packages
+from metapack.cli.core import find_packages, prt, write_doc
 from metatab import DEFAULT_METATAB_FILE
 from rowgenerators import parse_app_url
 
