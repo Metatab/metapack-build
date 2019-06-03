@@ -16,7 +16,8 @@ from metapack.constants import PACKAGE_PREFIX
 from metapack.index import SearchIndex, search_index_file
 from metapack.package import Downloader
 from metapack.util import datetime_now
-from metapack_build.build import create_s3_csv_package, make_s3_package, generate_packages
+from metapack_build.build import (create_s3_csv_package, generate_packages,
+                                  make_s3_package)
 from metapack_build.package.s3 import S3Bucket
 from metatab import DEFAULT_METATAB_FILE
 from rowgenerators import parse_app_url
@@ -40,7 +41,7 @@ class MetapackCliMemo(object):
 
         self.mtfile_url = MetapackUrl(self.mtfile_arg, downloader=self.downloader)
 
-        self.resource = self.mtfile_url.fragment
+        self.resource = self.mtfile_url.target_file
 
         self.package_url = self.mtfile_url.package_url
         self.mt_file = self.mtfile_url.metadata_url
@@ -76,6 +77,10 @@ def s3(subparsers):
     parser.add_argument('-p', '--profile', help="Name of a BOTO or AWS credentials profile", required=False)
 
     parser.add_argument('-s', '--s3', help="URL to S3 where packages will be stored", required=False)
+
+    # parser.add_argument('-u', '--url', help="Print the access url", action="store_true")
+
+    # parser.add_argument('-e', '--exists', help="Check if the uploaded metadata file exists", action="store_true")
 
     parser.add_argument('-F', '--force', default=False, action='store_true',
                         help='Force write for all files')
