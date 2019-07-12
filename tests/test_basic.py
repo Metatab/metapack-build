@@ -15,8 +15,7 @@ from metapack.constants import PACKAGE_PREFIX
 from metapack.terms import Reference, Resource
 from metatab import TermParser
 from metatab.rowgenerators import TextRowGenerator
-
-from .support import MetapackTest, test_data
+from support import MetapackTest, test_data
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
@@ -82,7 +81,7 @@ class TestBasic(MetapackTest):
         doc = MetapackDoc(TextRowGenerator(test_data('line', 'line-oriented-doc.txt')))
 
         self.assertEqual('47bc1089-7584-41f0-b804-602ec42f1249', doc.get_value('Root.Identifier'))
-        self.assertEqual(151, len(doc.terms))
+        self.assertEqual(153, len(doc.terms))
 
         self.assertEqual(6, len(list(doc['References'])))
 
@@ -114,7 +113,7 @@ class TestBasic(MetapackTest):
         doc = MetapackDoc(TextRowGenerator(test_data('line', 'line-oriented-doc.txt')))
 
         self.assertEqual('47bc1089-7584-41f0-b804-602ec42f1249', doc.get_value('Root.Identifier'))
-        self.assertEqual(151, len(doc.terms))
+        self.assertEqual(153, len(doc.terms))
 
         self.assertEqual(6, len(list(doc['References'])))
 
@@ -145,7 +144,7 @@ class TestBasic(MetapackTest):
             doc.load_terms(tp)
 
         self.assertEqual('47bc1089-7584-41f0-b804-602ec42f1249', doc.get_value('Root.Identifier'))
-        self.assertEqual(155, len(doc.terms))
+        self.assertEqual(157, len(doc.terms))
 
         self.assertEqual(5, len(list(doc['References'])))
 

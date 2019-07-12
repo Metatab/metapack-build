@@ -19,6 +19,6 @@ for k, v in environ.items():
     w.writerow([i, 'env', k, v])
     i += 1
 
-for k, v in json.loads(environ['PROPERTIES']).items():
+for k, v in json.loads(environ.get('PROPERTIES')).items():
     w.writerow([i, 'prop', k, v])
     i += 1

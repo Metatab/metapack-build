@@ -10,8 +10,10 @@ from pathlib import Path
 from shutil import copyfile
 
 import requests
+
 from metapack.cli.core import MetapackCliMemo as _MetapackCliMemo
 from metapack.package import Downloader
+from metapack.support import pylib
 
 downloader = Downloader.get_instance()
 
@@ -71,12 +73,16 @@ def new_args(subparsers):
     parser.add_argument('-E', '--example', help="Add examples of resources",
                         action='store_true')
 
+    group = parser.add_argument_group('Alternate Format', 'Generate other types of packages')
+
     try:
-        import metapack_jupyter # noqa
-        parser.add_argument('-J', '--jupyter', help="Create a Jupyter notebook source package",
-                            action='store_true')
+        import metapack_jupyter  # noqa
+        group.add_argument('-J', '--jupyter', help="Create a Jupyter notebook source package",
+                           action='store_true')
     except ImportError:
         pass
+
+    group.add_argument('-c', '--csv', help="Create a single-file csv source package", action='store_true')
 
     parser.add_argument('--template', help="Metatab file template, defaults to 'metatab' ", default='metatab')
     parser.add_argument('-C', '--config', help="Path to config file. "
@@ -204,10 +210,14 @@ def new_cmd(args):
         if exists(nv_name):
             err(f"Directory {nv_name} already exists")
 
-        ensure_dir(nv_name)
+        if args.csv:
+            fn = doc.nonver_name + '.csv'
+            write_doc(doc, fn)
+            prt(f"Writing to {fn}")
 
-        if True:  # args.pylib:
-            from metapack.support import pylib
+        else:
+            ensure_dir(nv_name)
+
             pylib_dir = join(nv_name, 'pylib')
             ensure_dir(pylib_dir)
             with open(join(pylib_dir, '__init__.py'), 'w') as f_out, open(pylib.__file__) as f_in:
@@ -216,20 +226,20 @@ def new_cmd(args):
             if args.example:
                 doc['Resources'].new_term('Root.Datafile', 'python:pylib#row_generator', name='row_generator')
 
-        prt(f"Writing to '{nv_name}'")
+            prt(f"Writing to '{nv_name}'")
 
-        write_doc(doc, join(nv_name, DEFAULT_METATAB_FILE))
+            write_doc(doc, join(nv_name, DEFAULT_METATAB_FILE))
 
-        with open(join(dirname(support_dir.__file__), 'gitignore')) as f:
-            gitignore = f.read()
+            with open(join(dirname(support_dir.__file__), 'gitignore')) as f:
+                gitignore = f.read()
 
-        with open(join(nv_name, '.gitignore'), 'w') as f:
-            f.write(gitignore)
+            with open(join(nv_name, '.gitignore'), 'w') as f:
+                f.write(gitignore)
 
-        if args.title:
-            readme = '# {}\n'.format(args.title)
-        else:
-            readme = '# {}\n'.format(doc.get_value('Root.Name'))
+            if args.title:
+                readme = '# {}\n'.format(args.title)
+            else:
+                readme = '# {}\n'.format(doc.get_value('Root.Name'))
 
-        with open(join(nv_name, 'README.md'), 'w') as f:
-            f.write(readme)
+            with open(join(nv_name, 'README.md'), 'w') as f:
+                f.write(readme)

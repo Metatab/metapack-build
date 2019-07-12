@@ -7,11 +7,11 @@ CLI program for managing packages
 
 import re
 
-from metapack import MetapackDoc, Downloader
-from metapack.cli.core import prt, warn, write_doc, \
-    update_name, extract_path_name, MetapackCliMemo
+from metapack import Downloader, MetapackDoc
+from metapack.cli.core import (MetapackCliMemo, err, extract_path_name, prt,
+                               update_name, warn, write_doc)
 from rowgenerators import parse_app_url
-from rowgenerators.exceptions import SourceError, RowGeneratorError
+from rowgenerators.exceptions import RowGeneratorError, SourceError
 from tableintuit import RowIntuitError
 
 downloader = Downloader.get_instance()
@@ -30,29 +30,25 @@ def url(subparsers):
 
     cmdp = cmdsp.add_parser('add',
                             help='Add a file or url to the resources. With a directory add a data files in the directory. '
-                            'If given a URL to a web page, will add all links that point to CSV, Excel Files and '
-                            'data files in ZIP files. (Caution: it will download and cache all of these files. )')
+                                 'If given a URL to a web page, will add all links that point to CSV, Excel Files and '
+                                 'data files in ZIP files. (Caution: it will download and cache all of these files. )')
     cmdp.set_defaults(run_command=run_url_add)
-
 
     cmdp.add_argument('url')
 
     cmdp.add_argument('metatabfile', nargs='?',
-                        help="Path or URL to a metatab file. If not provided, defaults to 'metadata.csv' ")
-
-
+                      help="Path or URL to a metatab file. If not provided, defaults to 'metadata.csv' ")
 
     cmdp = cmdsp.add_parser('enumerate',
                             help='Enumerate the resources referenced from a URL. Does not alter the Metatab file')
-    cmdp.set_defaults(run_command=run_url_enumerate)\
+    cmdp.set_defaults(run_command=run_url_enumerate)
 
     cmdp.add_argument('url')
-
 
     cmdp = cmdsp.add_parser('scrape', help='Scrape data and documentation URLs from a web page')
     cmdp.set_defaults(run_command=run_url_scrape)
 
-    cmdp.add_argument('-n','--dry-run', action='store_true', help="Don't write URLs to file")
+    cmdp.add_argument('-n', '--dry-run', action='store_true', help="Don't write URLs to file")
 
     cmdp.add_argument('-v', '--verbose', action='store_true', help="Print terms as they are added")
 
@@ -63,8 +59,7 @@ def url(subparsers):
     cmdp.add_argument('url')
 
     cmdp.add_argument('metatabfile', nargs='?',
-                        help="Path or URL to a metatab file. If not provided, defaults to 'metadata.csv' ")
-
+                      help="Path or URL to a metatab file. If not provided, defaults to 'metadata.csv' ")
 
 
 def run_url_add(args):
@@ -80,7 +75,7 @@ def run_url_add(args):
     else:
         doc = MetapackDoc(m.mt_file)
 
-    if not 'Resources' in doc:
+    if 'Resources' not in doc:
         doc.new_section('Resources')
 
     doc['Resources'].args = [e for e in set(doc['Resources'].args + ['Name', 'StartLine', 'HeaderLines', 'Encoding']) if
@@ -124,6 +119,9 @@ def run_url_scrape(args):
 
     d = scrape_urls_from_web_page(url)
 
+    if d.get('error'):
+        err(d.get('error'))
+
     new_resources = 0
     new_documentation = 0
 
@@ -153,8 +151,8 @@ def run_url_scrape(args):
     if not args.dry_run:
         write_doc(doc)
 
-def run_url_enumerate(args):
 
+def run_url_enumerate(args):
     u = parse_app_url(args.url)
 
     if u.proto == 'file':
@@ -162,15 +160,8 @@ def run_url_enumerate(args):
     else:
         entries = [ssu for su in u.list() for ssu in su.list()]
 
-
     for e in entries:
         print(e)
-
-    return
-
-    for s in specs:
-        prt(classify_url(s.url), s.target_format, s.url, s.target_segment)
-
 
 
 def classify_url(url):
@@ -184,8 +175,6 @@ def classify_url(url):
         term_name = 'Datafile'
 
     return term_name
-
-
 
 
 def add_single_resource(doc, ref, cache, seen_names):
@@ -242,7 +231,7 @@ def add_single_resource(doc, ref, cache, seen_names):
         try:
             int(name[0])
             name = 'a' + name[1:]
-        except:
+        except Exception:
             pass
 
     prt("Added {}, url: {} ".format(name, ref))
@@ -251,6 +240,7 @@ def add_single_resource(doc, ref, cache, seen_names):
                                      startline=start_line,
                                      headerlines=','.join(str(e) for e in header_lines)
                                      )
+
 
 def run_row_intuit(path, cache):
     from tableintuit import RowIntuiter
@@ -266,9 +256,7 @@ def run_row_intuit(path, cache):
             rows = list(islice(u.get_resource().get_target().generator, 5000))
             ri = RowIntuiter().run(list(rows))
             return encoding, ri
-        except (TextEncodingError, UnicodeEncodeError, UnicodeDecodeError) as e:
-            pass # Try the next encoding
-
+        except (TextEncodingError, UnicodeEncodeError, UnicodeDecodeError):
+            pass  # Try the next encoding
 
     raise RowIntuitError('Failed to convert with any encoding')
-

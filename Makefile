@@ -20,3 +20,6 @@ publish:
 
 develop:
 	python setup.py develop
+
+test:
+	cd tests &&  python -m pytest

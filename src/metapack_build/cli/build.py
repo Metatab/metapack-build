@@ -12,11 +12,12 @@ from time import time
 
 from metapack import MetapackDoc
 from metapack.cli.core import (MetapackCliMemo, err, extract_path_name,
-                               get_lib_module_dict, process_schemas, prt,
-                               update_name, write_doc)
+                               get_lib_module_dict, prt, update_name,
+                               write_doc)
 from metapack.package import Downloader
 from metapack_build.build import (make_csv_package, make_excel_package,
                                   make_filesystem_package, make_zip_package)
+from metapack_build.core import process_schemas
 from rowgenerators import parse_app_url
 from rowgenerators.util import clean_cache
 from tableintuit import RowIntuitError

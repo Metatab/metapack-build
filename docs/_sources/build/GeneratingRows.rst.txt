@@ -22,32 +22,86 @@ Generating Rows With Functions
 
 Datafiles can specify URLs that will use a Python function to generate rows.
 
-First, the URL must have a ``python`` scheme:
+There are two ways to specify a python function, either as a function in a module
+on the include path, or as a function in a python file.
+
+To use python library form, the URL must have a ``python`` scheme:
 
 ..
 
     Datafile: python:pylib#extract
 
-The ``lib`` component references the module that holds the function to use, and
-the fragement (``#extract`` ) is the name of the function. The module can be
-anything. In this case, Metatab will automatically import the :py:mod:`lib`
-module, from the package that holds the source Metatab file (
-:file:`metadata.csv` ). To be a module, the :file:`lib` directory must have a
-:file:`__init__.py` in it.
+The ``lib`` component ( ``pylib`` in this example ) references the module that
+holds the function to use, and the  fragement (``#extract`` ) is the name of
+he function. The module can be anything. In this case, Metatab will automatically
+import the :py:mod:`lib` module, from the package that holds the source Metatab
+file ( :file:`metadata .csv` ). To be a module, the :file:`lib` directory must
+have a :file:`__init__.py` in it.
 
 The signature for the function is:
 
 .. py:function:: f(resource, doc, env, *args, **kwargs)
 
 	Yield rows for a ``Root.Datafile``
-	
-	:param Term resource: The resource object for the Root.Datafile that is being built. 
-	:param MetapackDoc doc: The current Metapack document. 
-	:param dict env: a dictionary of environmental variables. 
-	:return: Yields tuple or list rows. 
+
+	:param Term resource: The resource object for the Root.Datafile that is being built.
+	:param MetapackDoc doc: The current Metapack document.
+	:param dict env: a dictionary of environmental variables.
+	:return: Yields tuple or list rows.
 
 where ``resource`` is the Metatab resource term for the ``Datafile`` term, and
 ``doc`` is the Metapack document.
+
+
+The function shoudl either return a pandas Dataframe, or ``yield from``
+a generator which return the header as the first row, and data as subsequent
+rows.
+
+The file form is similar, but it references a file directly, such as:
+
+..
+
+    Datafile: pylib/generate.py#row_generator
+
+
+The library and file forms are very similar; these two references are
+equivalent:
+
+..
+
+    Datafile: pylib/__init__.py#row_generator
+    Datafile: python:pylib#row_generator
+
+The ``metapack_build`` includes some predefined generators, which can be
+referenced like this:
+
+..
+
+    Datafile: python:metapack_build.rowgenerator#copy_reference_group
+
+You can pass arguments into the function either as environmental variables,
+or as property arguments on the resource. For instance, if the resource is:
+
+..
+
+    Datafile: python:pylib#extract
+    Datafile.Name: extract
+    Datafile.Argument
+
+
+The argument can be accessed as with:
+
+.. code-block:: python
+
+    def extract(resource, doc, env, *args, **kwargs):
+
+        arg = resource.get_value('Argument')
+
+
+
+
+
+
 
 Common Patterns
 ---------------
@@ -72,19 +126,19 @@ doc -d`` won't report it as a dependency.
 To maintin dependencies, you can:
 
 - Reference the foren package in the ``References``
-- Copy it into a Resource with the ``python:metapack.rowgenerator#copy_reference`` row generator. 
+- Copy it into a Resource with the ``python:metapack.rowgenerator#copy_reference`` row generator.
 
 For instance::
 
     Section: References
     Reference: index:bc.edu-comments-creations#comments
     Reference.Name: comments
-    
+
     Section: Resources
     Datafile: python:metapack.rowgenerator#copy_reference
     Datafile.Name: comments
 
-In this example, the ``copy_reference`` function will copy the 'comments' reference into the 'comments' Datafile. 
+In this example, the ``copy_reference`` function will copy the 'comments' reference into the 'comments' Datafile.
 
 
 
@@ -103,48 +157,44 @@ values that are passed into the program regardless of the configuration of the
 ``Root.DataFile`` term. The second are the properties of the ``Root.DataFile``
 terms.
 
-The inputs for all programs are: 
+The inputs for all programs are:
 
 - :envvar:`METATAB_DOC`: An env var that holds the URL for the Metatab document being processed
 - :envvar:`METATAB_PACKAGE`: An env var that holds the metatab document's package URL. ( Which is usually the same as the document URL )
-- :envvar:`METATAB_WORKING_DIR`: An env var that holds the path to the directory holding the metatab file. 
-- :envvar:`PROPERTIES`: An env var with holds a JSON encoded dict with the three previous env values, along with the ``properties`` dict for the ``Root.DataFile`` term. 
+- :envvar:`METATAB_WORKING_DIR`: An env var that holds the path to the directory holding the metatab file.
+- :envvar:`PROPERTIES`: An env var with holds a JSON encoded dict with the three previous env values, along with the ``properties`` dict for the ``Root.DataFile`` term.
 
 Additionally, the program receives the ``Root.DataFile`` properties in these forms:
 
-- Properties that have names that are all uppercased are assigned to env variables. 
+- Properties that have names that are all uppercased are assigned to env variables.
 - Properties that have names that begin with '-' are assigned to program options.
 
 Since the program must output CSV formatted lines, a CSV writer can be constructed on ``sys.stdout``:
 
-.. code-block:: python 
+.. code-block:: python
 
      import sys
      import csv
-     
+
      w = csv.writer(sys.stdout)
-     
+
      w.writerow(...)
-     
-     
+
+
 If the program generates logging or warnings, they must be printed to
 ``sys.stderr``
 
-.. code-block:: python 
+.. code-block:: python
 
      import sys
-     
+
      print("ERROR!", file=sys.stderr)
 
 It is very common for a program to open the Metatab document that is being used
 to run the row generator. You can use the :envvar:`METATAB_DOC` environmental
 variable to get a reference to the current package.
 
-.. code-block:: python 
+.. code-block:: python
 
     import metatab as mt
     doc = mt.open_package(environ['METATAB_DOC'])
-
-
-     
-     

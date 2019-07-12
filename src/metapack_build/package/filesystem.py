@@ -6,13 +6,16 @@
 import json
 import shutil
 from genericpath import exists, getmtime
+from os import makedirs, remove
+from os.path import dirname, join
+
+from nbconvert.writers import FilesWriter
+
 from metapack.appurl import MetapackUrl
 from metapack.util import datetime_now, ensure_dir, slugify
 from metatab import DEFAULT_METATAB_FILE
 from metatab.datapackage import convert_to_datapackage
-from nbconvert.writers import FilesWriter
-from os import makedirs, remove
-from os.path import dirname, join
+from metatab.util import md5_file
 from rowgenerators import parse_app_url
 
 from .core import PackageBuilder
@@ -164,15 +167,6 @@ class FileSystemPackageBuilder(PackageBuilder):
         if not r.name:
             raise MetapackError(f"Resource/reference term has no name: {str(r)}")
 
-        # Special handing for SQL should not be done here; it should be done in Rowgenerators, probably.
-        if r.term_is('root.sql'):
-            new_r = self.doc['Resources'].new_term('Root.Datafile', '')
-            new_r.name = r.name
-
-            self.doc.remove_term(r)
-
-            r = new_r
-
         r.url = 'data/' + r.name + '.csv'  # Re-writing the URL for the resource.
 
         path = join(self.package_path.path, r.url)
@@ -193,6 +187,19 @@ class FileSystemPackageBuilder(PackageBuilder):
 
         for k, v in source_r.post_iter_meta.items():
             r[k] = v
+
+        # Add full source references to the new document
+        if 'Sources' not in self._doc:
+            self._doc.new_section('Sources', ['Name', 'Description', 'Hash'])
+        elif 'hash' not in self._doc['Sources'].args:
+            self._doc['Sources'].add_arg('hash')
+
+        if not self._doc['Sources'].find_first_value('Root.DatafileSource', source_r.resolved_url):
+            self._doc['Sources'].new_term('Root.DatafileSource',
+                                          source_r.resolved_url,
+                                          name=r.props.get('name'),
+                                          description=r.props.get('description'),
+                                          hash=md5_file(str(source_r.resolved_url.get_resource().fspath)))
 
         try:
             if source_r.errors:

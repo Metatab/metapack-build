@@ -5,10 +5,10 @@ import unittest
 
 from metapack import Downloader, MetapackDoc, open_package
 from metapack.cli.core import cli_init
-from metapack.test.support import MetapackTest, test_data
 from metatab.rowgenerators import TextRowGenerator
 from metatab.util import flatten
 from rowgenerators import get_generator, parse_app_url
+from support import MetapackTest, test_data
 
 logger = logging.getLogger('user')
 logger_err = logging.getLogger('cli-errors')
