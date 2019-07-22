@@ -10,6 +10,7 @@ from os import getcwd, getenv
 from os.path import basename
 
 from botocore.exceptions import NoCredentialsError
+
 from metapack import MetapackDoc, MetapackPackageUrl, MetapackUrl, open_package
 from metapack.cli.core import err, prt
 from metapack.constants import PACKAGE_PREFIX
@@ -136,7 +137,8 @@ def run_s3(args):
 
     m.doc['Root'].get_or_new_term('Root.Issued').value = datetime_now()
 
-    clear_cache(m, fs_p.files_processed)
+    if fs_p:
+        clear_cache(m, fs_p.files_processed)
 
 
 def clear_cache(m, files_processed):
@@ -204,7 +206,8 @@ def upload_packages(m):
 
                 dist_urls.append(au)
 
-    fs_p.files_processed += files_processed  # Ugly encapsulating-breaking hack.
+    if fs_p:
+        fs_p.files_processed += files_processed  # Ugly encapsulating-breaking hack.
 
     return dist_urls, fs_p
 

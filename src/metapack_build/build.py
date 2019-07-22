@@ -6,7 +6,7 @@
 import os
 
 from metapack import MetapackPackageUrl, MetapackUrl, open_package
-from metapack.cli.core import find_packages, prt, write_doc
+from metapack.cli.core import find_packages, prt
 from metatab import DEFAULT_METATAB_FILE
 from rowgenerators import parse_app_url
 
@@ -96,16 +96,6 @@ def make_csv_package(file, package_root, cache, env, force, nv_name=None, nv_lin
                        lambda: p.create_nv_link() if nv_link else None)
 
 
-def set_distributions(doc, dist_urls):
-    for t in doc.find('Root.Distribution'):
-        doc.remove_term(t)
-
-    for au in dist_urls:
-        doc['Root'].new_term('Root.Distribution', au)
-
-    write_doc(doc)()
-
-
 def make_s3_package(file, package_root, cache, env, skip_if_exists, acl='public-read'):
     from metapack import MetapackUrl
     from metapack_build.package import S3PackageBuilder
@@ -136,7 +126,10 @@ def create_s3_csv_package(m, dist_urls, fs_p):
     p = CsvPackageBuilder(u, m.package_root, resource_root)
 
     access_url = m.bucket.access_url(p.cache_path)
+
     dist_urls.append(access_url)
+
+    dist_urls.append(m.bucket.private_access_url(p.cache_path))
 
     for au in dist_urls:
         if not p.doc.find_first('Root.Distribution', str(au)):
