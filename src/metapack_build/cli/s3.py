@@ -10,15 +10,14 @@ from os import getcwd, getenv
 from os.path import basename
 
 from botocore.exceptions import NoCredentialsError
-
 from metapack import MetapackDoc, MetapackPackageUrl, MetapackUrl, open_package
 from metapack.cli.core import err, prt
 from metapack.constants import PACKAGE_PREFIX
 from metapack.index import SearchIndex, search_index_file
 from metapack.package import Downloader
 from metapack.util import datetime_now
-from metapack_build.build import (create_s3_csv_package, generate_packages,
-                                  make_s3_package)
+from metapack_build.build import create_s3_csv_package, generate_packages
+from metapack_build.package import S3CsvPackageBuilder
 from metapack_build.package.s3 import S3Bucket
 from metatab import DEFAULT_METATAB_FILE
 from rowgenerators import parse_app_url
@@ -100,13 +99,15 @@ def run_s3(args):
         show_credentials(m.args.profile)
         exit(0)
 
+    # upload packages uploads the FS ( individual files )  and XLSX packages,
+    # but does not create the CSV package file
     dist_urls, fs_p = upload_packages(m)
 
     if dist_urls:
 
         # Create the CSV package, with links into the filesystem package
         if fs_p:
-            access_url = create_s3_csv_package(m, dist_urls, fs_p)
+            access_url, dist_urls = create_s3_csv_package(m, dist_urls, fs_p)
         else:
             # If this happens, then no packages were created, because an FS package
             # is always built first
@@ -182,16 +183,21 @@ def upload_packages(m):
                 prt("Added {} distribution: {} ".format(ptype, au))
                 dist_urls.append(au)
 
-        elif ptype == 'fs':  # Make the S3 package from the filesystem package
-
-            env = {}
-            skip_if_exist = False
+        elif ptype == 'fs':
+            # Write all of the FS package files to S3
 
             try:
                 s3_package_root = MetapackPackageUrl(str(m.s3_url), downloader=m.downloader)
 
-                fs_p, fs_url, created = make_s3_package(purl.metadata_url, s3_package_root, m.cache, env, skip_if_exist,
-                                                        m.acl)
+                # fake-out: it's not actually an S3 CSV package; it's a FS package on S3.
+                fs_p = S3CsvPackageBuilder(purl.metadata_url, s3_package_root, callback=prt, env={}, acl='public-read')
+
+                url = fs_p.save()
+
+                prt("Packaged saved to: {}".format(url))
+
+                # fs_url = MetapackUrl(url, downloader=purl.metadata_url.downloader)
+
             except NoCredentialsError:
                 print(getenv('AWS_SECRET_ACCESS_KEY'))
                 err("Failed to find boto credentials for S3. "

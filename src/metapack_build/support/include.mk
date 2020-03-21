@@ -13,6 +13,9 @@ PACK_DIR=$(REPO_ROOT)/_build
 GROUP_ARG=$(and $(GROUPS),"-g $(GROUPS)" )
 TAG_ARG=$(and $(TAGS),"-t $(TAGS)" )
 
+# Optional profile name in .aws/credentials
+S3_PROFILE_ARG=$(and $(S3_PROFILE),"-p$(S3_PROFILE)" )
+
 .PHONY: $(PACK_DIR) clean build s3 ckan list info wp
 
 default: build ;
@@ -52,7 +55,7 @@ ifndef S3_BUCKET
 	$(error S3_BUCKET is undefined)
 endif
 	@echo ======== S3 $* \( $@ \) =======
-	mp s3 -s $(S3_BUCKET) $*  && touch $(PACK_DIR)/$*.s3
+	mp s3 -s $(S3_BUCKET) $(S3_PROFILE_ARG) $*  && touch $(PACK_DIR)/$*.s3
 	touch -r $(PACK_DIR)/$*.build $*/metadata.csv # mp s3 updates the metadata, but we don't want to re-trigger build
 
 $(PACK_DIR)/%.ckan: $(PACK_DIR)/%.s3

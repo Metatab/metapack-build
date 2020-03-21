@@ -3,10 +3,11 @@
 
 """ """
 
+from os.path import abspath
+
 from metapack import PackageError
 from metapack.util import datetime_now
 from metapack_build.package import PackageBuilder
-from os.path import abspath
 from rowgenerators import parse_app_url
 
 
@@ -25,6 +26,9 @@ class CsvPackageBuilder(PackageBuilder):
 
         if self.package_root.proto == 'file':
             self.package_root.ensure_dir()
+
+        # The resource root is used for moving all of the resource files,
+        # such as converting local paths to remote urls.
 
         if resource_root is not None:
             self.resource_root = resource_root
@@ -47,17 +51,24 @@ class CsvPackageBuilder(PackageBuilder):
         return package_path, cache_path
 
     def _load_resource(self, source_r, abs_path=False):
-        """The CSV package has no reseources, so we just need to resolve the URLs to them. Usually, the
+        """The CSV package has no resources, so we just need to resolve the URLs to them. Usually, the
             CSV package is built from a file system ackage on a publically acessible server. """
 
         r = self.doc.resource(source_r.name)
 
-        r.url = self.resource_root.join(r.url).inner  # r.resolved_url
+        r.url = self.resource_root.join(r.url).inner
 
     def _relink_documentation(self):
 
         for doc in self.doc['Documentation'].find(['Root.Documentation', 'Root.Image']):
             doc.url = doc.resolved_url
+
+    def set_distributions(self, dist_urls):
+
+        # Create Root.Distribution terms for all of the dist urls.
+        for au in dist_urls:
+            if not self.doc.find_first('Root.Distribution', str(au)):
+                self.doc['Root'].new_term('Root.Distribution', au)
 
     def save(self, path=None):
         from metapack import MetapackPackageUrl

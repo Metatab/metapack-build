@@ -3,10 +3,11 @@
 
 """ """
 
-from metapack.package import  Downloader, open_package
-from .core import PackageBuilder
-from .filesystem import FileSystemPackageBuilder
-from .zip import ZipPackageBuilder
-from .s3 import S3PackageBuilder
-from .excel import ExcelPackageBuilder
-from .csv import CsvPackageBuilder
+from metapack.package import Downloader, open_package  # NOQA
+
+from .core import PackageBuilder  # NOQA
+from .csv import CsvPackageBuilder  # NOQA
+from .excel import ExcelPackageBuilder  # NOQA
+from .filesystem import FileSystemPackageBuilder  # NOQA
+from .s3 import S3CsvPackageBuilder  # NOQA
+from .zip import ZipPackageBuilder  # NOQA

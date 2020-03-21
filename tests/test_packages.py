@@ -13,8 +13,9 @@ from metapack_build.build import (make_csv_package, make_excel_package,
 from metatab.rowgenerators import TextRowGenerator
 from rowgenerators import get_generator, parse_app_url
 from rowgenerators.exceptions import RowGeneratorError
-from support import open_package, test_data
 from tabulate import tabulate
+
+from support import open_package, test_data
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
@@ -90,7 +91,7 @@ class TestPackages(unittest.TestCase):
 
     @unittest.skip("needs local file")
     def test_build_s3_package(self):
-        from metapack_build.build import make_s3_package
+        from metapack_build.build import make_s3_csv_package
 
         cache = Downloader().cache
 
@@ -106,7 +107,7 @@ class TestPackages(unittest.TestCase):
 
         package_dir = parse_app_url('s3://test.library.civicknowledge.com/metatab', downloader=downloader)
 
-        _, url, created = make_s3_package(fs_url, package_dir, cache, {}, False)
+        _, url, created = make_s3_csv_package(fs_url, package_dir, cache, {}, False)
 
         print(url)
         print(created)

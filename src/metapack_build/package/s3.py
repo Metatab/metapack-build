@@ -15,7 +15,7 @@ from rowgenerators import parse_app_url
 from .core import PackageBuilder
 
 
-class S3PackageBuilder(PackageBuilder):
+class S3CsvPackageBuilder(PackageBuilder):
     """A FS package in an S3 bucket """
 
     type_code = 's3'
@@ -45,7 +45,7 @@ class S3PackageBuilder(PackageBuilder):
     @property
     def private_access_url(self):
         from metapack import MetapackPackageUrl
-        return MetapackPackageUrl(self.bucket.access_url(DEFAULT_METATAB_FILE),
+        return MetapackPackageUrl(self.bucket.private_access_url(DEFAULT_METATAB_FILE),
                                   downloader=self._source_ref.downloader)
 
     @property
@@ -63,7 +63,7 @@ class S3PackageBuilder(PackageBuilder):
     def exists(self, url=None):
         return self.bucket.exists(DEFAULT_METATAB_FILE)
 
-    def save(self):
+    def save(self, path=None):
 
         self.check_is_ready()
 
@@ -82,6 +82,8 @@ class S3PackageBuilder(PackageBuilder):
         # Re-write the URLS for the datafiles
         for r in self.datafiles:
             r.url = self.bucket.access_url(r.url)
+            # s3_url = self.bucket.private_access_url(r.url)
+            # r.new_child('S3Url', s3_url)
 
         # Re-write the HTML index file.
         self._write_html()
@@ -111,7 +113,7 @@ class S3PackageBuilder(PackageBuilder):
 
         return
 
-    def _write_doc(self):
+    def _write_doc(self, path='metadata.csv'):
 
         bio = BytesIO()
         writer = csv.writer(bio)
@@ -192,6 +194,16 @@ class S3Bucket(object):
         except socket.gaierror:
             self.dns_bucket = False
 
+        self._client = boto3.client('s3')
+
+        response = self._client.get_bucket_location(
+            Bucket=self.bucket_name
+        )
+
+        self._region = response['LocationConstraint']
+
+        self._client = boto3.client('s3', region_name=self._region)
+
     @property
     def prefix(self):
         return self.url.path
@@ -217,14 +229,12 @@ class S3Bucket(object):
 
         key = join(self.prefix, *paths).strip('/')
 
-        s3 = boto3.client('s3')
-
-        url = s3.meta.endpoint_url.replace('https', 'http')
+        url = self._client.meta.endpoint_url.replace('https', 'http')
 
         if self.dns_bucket:
-            url = url.replace('/s3.amazonaws.com', '')  # Assume bucket has name because it is setup as a CNAME
-
-        return '{}/{}/{}'.format(url, self.bucket_name, key)
+            return 'http://{}/{}'.format(self.bucket_name, key)
+        else:
+            return '{}/{}/{}'.format(url, self.bucket_name, key)
 
     def signed_access_url(self, *paths):
 
