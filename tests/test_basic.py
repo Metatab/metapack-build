@@ -7,15 +7,20 @@
 
 
 import os
+import sys
 import unittest
 import warnings
+
+from metatab import TermParser
+from metatab.rowgenerators import TextRowGenerator
 
 from metapack import Downloader, MetapackDoc, MetapackUrl
 from metapack.constants import PACKAGE_PREFIX
 from metapack.terms import Reference, Resource
-from metatab import TermParser
-from metatab.rowgenerators import TextRowGenerator
 from support import MetapackTest, test_data
+
+print('XXXXX', '\n'.join(sys.path))
+
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
