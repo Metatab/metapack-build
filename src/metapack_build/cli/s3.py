@@ -10,6 +10,8 @@ from os import getcwd, getenv
 from os.path import basename
 
 from botocore.exceptions import NoCredentialsError
+from tabulate import tabulate
+
 from metapack import MetapackDoc, MetapackPackageUrl, MetapackUrl, open_package
 from metapack.cli.core import err, prt
 from metapack.constants import PACKAGE_PREFIX
@@ -22,7 +24,8 @@ from metapack_build.package.s3 import S3Bucket
 from metatab import DEFAULT_METATAB_FILE
 from rowgenerators import parse_app_url
 from rowgenerators.util import fs_join as join
-from tabulate import tabulate
+
+downloader = Downloader.get_instance()
 
 
 class MetapackCliMemo(object):
@@ -78,9 +81,8 @@ def s3(subparsers):
 
     parser.add_argument('-s', '--s3', help="URL to S3 where packages will be stored", required=False)
 
-    # parser.add_argument('-u', '--url', help="Print the access url", action="store_true")
-
-    # parser.add_argument('-e', '--exists', help="Check if the uploaded metadata file exists", action="store_true")
+    parser.add_argument('-r', '--result', action='store_true', default=False,
+                        help="If mp -q flag set, still report results")
 
     parser.add_argument('-F', '--force', default=False, action='store_true',
                         help='Force write for all files')
@@ -103,6 +105,8 @@ def run_s3(args):
     # but does not create the CSV package file
     dist_urls, fs_p = upload_packages(m)
 
+    writes = 0
+
     if dist_urls:
 
         # Create the CSV package, with links into the filesystem package
@@ -120,6 +124,7 @@ def run_s3(args):
         rows = [[path, url, reason] for what, reason, url, path in fs_p.files_processed if what != 'skip']
         if rows:
             prt("\nWrote these files:")
+            writes = len(rows)
             prt(tabulate(rows, headers='path url reason'.split()))
 
         rows = [[path, url, reason] for what, reason, url, path in fs_p.files_processed if what == 'skip']
@@ -140,6 +145,12 @@ def run_s3(args):
 
     if fs_p:
         clear_cache(m, fs_p.files_processed)
+
+    if m.args.result:
+        if writes > 0:
+            print(f"✅ Wrote {writes} files to {args.s3}")
+        else:
+            print(f"🚫 Did not write anything to {args.s3}")
 
 
 def clear_cache(m, files_processed):

@@ -101,7 +101,7 @@ class EmptyTerm(object):
     value = None
 
 
-et = EmptyTerm()
+et = EmptyTerm()  # For default values for terms that don't exist
 
 
 def new_cmd(args):
@@ -158,7 +158,11 @@ def new_cmd(args):
     (doc['Root'].find_first('Root.Time') or et).value = args.time or config.get_value('Root.Time')
     (doc['Root'].find_first('Root.Grain') or et).value = args.grain or config.get_value('Root.Grain')
     (doc['Root'].find_first('Root.Variant') or et).value = args.variant or config.get_value('Root.Variant')
-    (doc['Root'].find_first('Root.Version') or et).value = args.revision or config.get_value('Root.Version')
+
+    v = doc['Root'].get_or_new_term('Root.Version')
+    v.get_or_new_child('Version.Major').value = args.revision or config.get_value('Root.Version')
+    v.get_or_new_child('Version.Minor').value = 1
+    v.get_or_new_child('Version.Patch').value = 1
 
     # Copy contacts in
     if 'Contacts' in config:

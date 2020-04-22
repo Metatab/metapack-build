@@ -5,9 +5,10 @@
 Show path to include.mk for building packages with makefiles.
 """
 
-from metapack.package import Downloader
-from pathlib import Path
 import argparse
+from pathlib import Path
+
+from metapack.package import Downloader
 
 downloader = Downloader.get_instance()
 
@@ -51,10 +52,16 @@ def mk_args(subparsers):
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
 
+    parser.add_argument('-s', '--simple', default=False, action='store_true',
+                        help="Use the simpler version make for 'mp make' ")
+
     parser.set_defaults(run_command=mk_cmd)
 
 
 def mk_cmd(args):
     import metapack_build.support as support
 
-    print(Path(support.__file__).parent.joinpath('include.mk'))
+    if args.simple:
+        print(Path(support.__file__).parent.joinpath('include-simple.mk'))
+    else:
+        print(Path(support.__file__).parent.joinpath('include.mk'))

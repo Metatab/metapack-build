@@ -7,10 +7,14 @@
 
 import argparse
 import re
+from contextlib import contextmanager
 from pathlib import Path
 from time import time
 
-from metapack import MetapackDoc
+import yaml
+from tableintuit import RowIntuitError
+
+from metapack import MetapackDoc, MetapackError
 from metapack.cli.core import (MetapackCliMemo, err, extract_path_name,
                                get_lib_module_dict, prt, update_name,
                                write_doc)
@@ -20,7 +24,6 @@ from metapack_build.build import (make_csv_package, make_excel_package,
 from metapack_build.core import process_schemas
 from rowgenerators import parse_app_url
 from rowgenerators.util import clean_cache
-from tableintuit import RowIntuitError
 
 last_dl_message = time()
 
@@ -28,7 +31,7 @@ last_dl_message = time()
 def build_downloader_callback(msg_type, message, read_len, total_len):
     global last_dl_message
     if time() > last_dl_message + 5:
-        print("\rDownloading {} {} {} bytes ".format(msg_type, message, total_len), end='')
+        # prt("\rDownloading {} {} {} bytes ".format(msg_type, message, total_len), end='')
         last_dl_message = time()
 
 
@@ -71,8 +74,12 @@ def build(subparsers):
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog='')
 
-    parser.set_defaults(run_command=run_metapack)
+    parser.set_defaults(run_command=build_cmd)
 
+    return _build_add_options(parser)
+
+
+def _build_add_options(parser):
     parser.add_argument('metatabfile', nargs='?',
                         help="Path or URL to a metatab file. If not provided, defaults to 'metadata.csv'. "
                         )
@@ -87,6 +94,16 @@ def build(subparsers):
 
     parser.add_argument('-R', '--reuse-resources', action='store_true', default=False,
                         help='When building Filesystem package, try to reuse resources built in prior build')
+
+    parser.add_argument('-T', '--trial', action='store_true', default=False,
+                        help='Build pckage with a build version value of \'trial\'. Requires semantic version. With -R, use'
+                             'last trial build for resources and version numbers.')
+
+    parser.add_argument('-I', '--increment', action='store_true', default=False,
+                        help="Increment the version number before building")
+
+    parser.add_argument('-r', '--result', action='store_true', default=False,
+                        help="If mp -q flag set, still report results")
 
     group = parser.add_mutually_exclusive_group()
 
@@ -124,8 +141,11 @@ def build(subparsers):
     admin_group.add_argument('-C', '--clean', default=False, action='store_true',
                              help="For some operations, like updating schemas, clear the section of existing terms first")
 
+    parser.add_argument('-X', '--no-index', action='store_true', default=False,
+                        help="Don't index after building")
 
-def run_metapack(args):
+
+def build_cmd(args):
     from rowgenerators.rowpipe.exceptions import TooManyCastingErrors
 
     downloader.set_callback((build_downloader_callback))
@@ -136,9 +156,12 @@ def run_metapack(args):
         from metatab.s3 import set_s3_profile
         set_s3_profile(m.args.profile)
 
+    if m.args.clean_cache:
+        clean_cache('metapack')
+
     try:
-        for handler in (metatab_derived_handler, metatab_admin_handler):
-            handler(m)
+        changes = metatab_derived_handler(m)
+
     except TooManyCastingErrors as e:
         prt('Casting Errors:')
         for error in e.errors:
@@ -155,6 +178,49 @@ def run_metapack(args):
             err(e)
 
     clean_cache(m.cache)
+
+    return changes > 0
+
+
+@contextmanager
+def maybe_trial_build(m):
+    from shutil import copyfile
+
+    '''Update the metadata for a trial build, then restore it'''
+
+    if not m.args.trial:
+        yield False, m.mt_file
+        return
+
+    if not m.doc._has_semver():
+        raise MetapackError("To use trial builds, package must have a semantic version ")
+
+    prt('Building a trial')
+
+    mt_file = Path(m.mt_file.fspath).parent.joinpath('trial.csv')
+
+    copyfile(m.mt_file.fspath, mt_file)
+
+    doc = MetapackDoc(mt_file)
+    version = doc['Root'].find_first('Root.Version')
+    vb = version.get_or_new_child('Version.Build')
+    vb.value = 'trial'
+
+    try:
+        doc.update_name()
+        doc.write()
+
+        yield True, parse_app_url(str(mt_file), downloader)
+    finally:
+        mt_file.unlink()
+
+
+def last_build_marker_path(m):
+    return Path(m.package_root.fspath, '.last_build')
+
+
+def trial_build_marker_path(m):
+    return Path(m.package_root.fspath, '.trial_build')
 
 
 def metatab_derived_handler(m):
@@ -181,7 +247,8 @@ def metatab_derived_handler(m):
         # file packages will be built to package_dir
         package_dir = parse_app_url(m.args.package_directory)
 
-    update_name(m.mt_file, fail_on_missing=False, report_unchanged=False)
+    update_name(m.mt_file, fail_on_missing=False, report_unchanged=False,
+                mod_version='+' if m.args.increment else False)
 
     process_schemas(m.mt_file, cache=m.cache, clean=m.args.clean, report_found=False)
 
@@ -197,18 +264,28 @@ def metatab_derived_handler(m):
     # data for the other packages. This means that Transform processes and programs only need
     # to be run once.
 
-    _, url, created = make_filesystem_package(m.mt_file, m.package_root, m.cache, env, m.args.force, False,
-                                              nv_link, reuse_resources=reuse_resources)
+    with maybe_trial_build(m) as (is_trial_build, mt_file):
+
+        _, url, created = make_filesystem_package(mt_file, m.package_root, m.cache, env, m.args.force, False,
+                                                  nv_link, reuse_resources=reuse_resources)
+
+        lb_path = last_build_marker_path(m)
+
+        if is_trial_build:
+            trial_build_marker_path(m).write_text(str(url))
+        elif created or not lb_path.exists():
+            lb_path.write_text(str(url))
+
+        # If we used an alternate metafile, it's because we're testing the build,
+        # and the other derived packages should not be created. Also, don't index it.
+        if is_trial_build:
+            return create_list
+
     create_list.append(('fs', url, created))
-
-    lb_path = Path(m.package_root.fspath, 'last_build')
-
-    if created or not lb_path.exists():
-        Path(m.package_root.fspath, 'last_build').touch()
 
     m.mt_file = url
 
-    env = {}  # Don't need it anymore, since no more programs will be run.
+    env = {}  # Don't need it anymore, since no more build programs, functions or notebooks will be run.
 
     if m.args.excel is not False:
         _, url, created = make_excel_package(m.mt_file, package_dir, m.cache, env, m.args.force, nv_name, nv_link)
@@ -222,14 +299,32 @@ def metatab_derived_handler(m):
         _, url, created = make_csv_package(m.mt_file, package_dir, m.cache, env, m.args.force, nv_name, nv_link)
         create_list.append(('csv', url, created))
 
-    index_packages(m)
+    if m.args.no_index is False:
+        index_packages(m)
 
-    return create_list
+    if m.args.result:
+        pf = print
+    else:
+        pf = prt
 
+    changes = 0
 
-def metatab_admin_handler(m):
-    if m.args.clean_cache:
-        clean_cache('metapack')
+    if any(e[2] for e in create_list):
+
+        if compare_hashes(m) is False:
+            pf(f"☑️ Built {m.doc.name}, but not different from previous build ")
+            changes = 0
+        else:  # True or None
+            pf(f"✅ Built {m.doc.name}")
+            changes = 1
+
+    else:
+        pf("🚫 Did not build anything")
+        changes = 0
+
+    write_hashes(m)
+
+    return changes
 
 
 def classify_url(url):
@@ -270,8 +365,6 @@ def add_resource(mt_file, ref, cache):
         entries = u.list()
     else:
         entries = [ssu for su in u.list() for ssu in su.list()]
-
-    print(type(u), u)
 
     for e in entries:
         add_single_resource(doc, e, cache=cache, seen_names=seen_names)
@@ -353,12 +446,71 @@ def index_packages(m):
 
     entries = []
     for p in walk_packages(None, parse_app_url(str(m.package_root.fspath))):
-        prt(p.ref)
-        idx.add_package(p)
-        entries.append(p.name)
+        # Don't index trial packages
+
+        if p['Root'].find_first('Root.Version').find_first_value('Version.Build') != 'trial':
+            prt("Indexing:", p.ref)
+            idx.add_package(p)
+            entries.append(p.name)
 
     idx.write()
     prt("Indexed ", len(entries), 'entries')
+
+
+def compare_hashes(m):
+    from metapack import open_package
+
+    hp = Path(m.package_root.fspath, '.hashes.yaml')
+
+    if not hp.exists():
+        return None
+
+    hashes = yaml.safe_load(hp.read_text())
+
+    pm = last_build_marker_path(m)
+
+    diffs = 0
+    if pm.exists():
+
+        p = open_package(pm.read_text())
+
+        for r in p.resources():
+            h1 = r.raw_row_generator.hash
+            h2 = hashes['last_hashes'].get(r.name)
+
+            if h1 != h2:
+                diffs += 1
+
+    if diffs:
+        return True
+    else:
+        return False
+
+
+def write_hashes(m):
+    pm = last_build_marker_path(m)
+
+    hashes = {}
+
+    if pm.exists():
+        hashes['last_package'] = pm.read_text()
+
+        p = MetapackDoc(hashes['last_package'])
+
+        hashes['last_hashes'] = {r.name: r.raw_row_generator.hash for r in p.resources()}
+
+    tm = trial_build_marker_path(m)
+
+    if tm.exists():
+        hashes['trial_package'] = tm.read_text()
+
+        p = MetapackDoc(hashes['trial_package'])
+
+        hashes['trial_hashes'] = {r.name: r.raw_row_generator.hash for r in p.resources()}
+
+    hp = Path(m.package_root.fspath, '.hashes.yaml')
+
+    hp.write_text(yaml.safe_dump(hashes))
 
 
 DATA_FORMATS = ('xls', 'xlsx', 'tsv', 'csv')

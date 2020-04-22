@@ -147,7 +147,7 @@ class FileSystemPackageBuilder(PackageBuilder):
 
     def _load_resource(self, source_r, abs_path=False):
         """The CSV package has no resources, so we just need to resolve the URLs to them. Usually, the
-            CSV package is built from a file system ackage on a publically acessible server. """
+            CSV package is built from a file system package on a publically acessible server. """
 
         from itertools import islice
         from metapack.exc import MetapackError
@@ -173,9 +173,10 @@ class FileSystemPackageBuilder(PackageBuilder):
 
         makedirs(dirname(path), exist_ok=True)
 
+        # In the case of not reusing resources, we just don't delete them if they already exist.
         if not self.reuse_resources or not exists(path):
 
-            if self.reuse_resources:
+            if not exists(path):
                 self.prt("Resource {} doesn't exist, rebuilding".format(path))
 
             if exists(path):

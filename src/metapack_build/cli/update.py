@@ -27,6 +27,8 @@ def update(subparsers):
     -n/--name updates the package name, based on the Origin, Dataset, Time Space,
     Grain, Version and Variant terms
 
+    -I//--increment increments the version number, then runs --name
+
     Properties
     ----------
 
@@ -71,6 +73,12 @@ def update(subparsers):
 
     parser.add_argument('-n', '--name', action='store_true', default=False,
                         help="Update the Name from the Datasetname, Origin and Version terms")
+
+    parser.add_argument('-I', '--increment', action='store_true', default=False,
+                        help="Increment the version number, then update with --name")
+
+    parser.add_argument('-V', '--version',
+                        help="Set the version number for single valued version, or the Patch for semantic versions. ")
 
     parser.add_argument('-s', '--schemas', default=False, action='store_true',
                         help='Rebuild the schemas for files referenced in the resource section')
@@ -140,10 +148,19 @@ def run_update(args):
         update_promote(m)
 
     if m.mtfile_url.scheme == 'file' and m.args.name:
-        update_name(m.mt_file, fail_on_missing=True, force=m.args.force)
+        mod_version = m.args.version if m.args.version \
+            else '+' if m.args.increment \
+            else False
+
+        update_name(m.mt_file, fail_on_missing=True, force=m.args.force,
+                    mod_version=mod_version)
 
     if m.args.coverage:
         update_coverage(m)
+
+
+def increment_version(m):
+    pass
 
 
 def update_schemas(m):
@@ -188,8 +205,6 @@ def update_descriptions(m):
 
         print(ref.name, id(ref))
         print("Updated '{}' to '{}'".format(ref.name, ref.description))
-
-    # print(m.doc.as_csv())
 
     for ref in doc.references():
         ref.find_first('Description')  # Is this necessary?
