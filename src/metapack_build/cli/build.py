@@ -161,6 +161,7 @@ def build_cmd(args):
 
     try:
         changes = metatab_derived_handler(m)
+        prt(f"{changes} changes")
 
     except TooManyCastingErrors as e:
         prt('Casting Errors:')
@@ -179,7 +180,7 @@ def build_cmd(args):
 
     clean_cache(m.cache)
 
-    return changes > 0
+    return 0
 
 
 @contextmanager
