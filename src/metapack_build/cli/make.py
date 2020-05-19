@@ -6,14 +6,17 @@ Show path to include.mk for building packages with makefiles.
 """
 
 import argparse
+from datetime import datetime, timedelta
+
+from dateutil.parser import parse
 
 from metapack.cli.core import MetapackCliMemo
 from metapack.cli.mp import base_parser
 from metapack.package import Downloader
+from metapack.util import iso8601_duration_as_seconds
 from metapack_build.cli.build import build_cmd
 from metapack_build.cli.s3 import run_s3
 from metapack_build.cli.touch import write_hashes
-from metapack_wp.wp import run_wp
 
 downloader = Downloader.get_instance()
 
@@ -25,6 +28,10 @@ def make_args(subparsers):
         * Force building a package, with the downloader cache off ( it will always fetch and build )
         * Optionally upload package to S3
         * Optionally publishes uploaded package to Wordpress
+
+    However, if an UpdateFrequency value is set ( an ISO8601 time duration )
+    the update will not run until a time after Root.Modified + Root.UpdateFrequency
+    unless the --force option used.
 
     """
     parser = subparsers.add_parser(
@@ -84,8 +91,76 @@ def mk_ns(args, cmd, *largs):
     return parser.parse_args(new_args)
 
 
+def next_update_time(m):
+    """Return the next update time. If the UpdateFrequency or Modified
+    """
+
+    last_mod = m.doc['Root'].find_first_value('Root.Modified')
+
+    if last_mod:
+        last_mod = parse(last_mod)
+    else:
+        return False
+
+    uf = m.doc['Root'].find_first_value('Root.UpdateFrequency')
+
+    if uf:
+        uf = timedelta(seconds=iso8601_duration_as_seconds(uf))
+    else:
+        return False
+
+    return (last_mod + uf).date()
+
+
+def should_build(args):
+    force = args.force
+
+    downloader = Downloader.get_instance()
+    m = MetapackCliMemo(args, downloader)
+    p = m.filesystem_package
+
+    now = datetime.now().date()
+
+    update_time = next_update_time(m)
+
+    if m.doc['Root'].find_first_value('Root.UpdateFrequency'):
+        has_uf = True
+    else:
+        has_uf = False
+
+    if force:
+        reason = 'Forcing build'
+        should_build = True
+    elif p.is_older_than_metadata():
+        reason = 'Metadata is younger than package'
+        should_build = True
+    elif not p.exists():
+        reason = "Package doesn't exist"
+        should_build = True
+    elif update_time is not False and update_time <= now:
+        reason = 'Last build past update frequency'
+        should_build = True
+    else:
+        if has_uf and update_time is not False:
+            reason = f'UpdateFrequency specifies next build at {update_time}'
+        else:
+            reason = 'Package source has not changed since last build'
+
+        should_build = False
+
+    return should_build, reason
+
+
 def make_cmd(args):
     # Always turn the cache off; builds won't update otherwise
+
+    sb, reason = should_build(args)
+
+    if not sb:
+        print(f"☑️  Not building; {reason}")
+        return
+    else:
+        print(f"⚙️  Building: {reason}")
 
     if args.build:
         downloader = Downloader.get_instance()
@@ -111,6 +186,7 @@ def make_cmd(args):
         run_s3(ns)
 
     if do_uploads and args.wordpress_site:
+        from metapack_wp.wp import run_wp
         ns = mk_ns(args, 'wp')
         ns.site_name = args.wordpress_site
         ns.source = args.metatabfile

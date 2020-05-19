@@ -446,12 +446,10 @@ def index_packages(m):
 
     entries = []
     for p in walk_packages(None, parse_app_url(str(m.package_root.fspath))):
-        # Don't index trial packages
 
-        if p['Root'].find_first('Root.Version').find_first_value('Version.Build') != 'trial':
-            prt("Indexing:", p.ref)
-            idx.add_package(p)
-            entries.append(p.name)
+        prt("Indexing:", p.ref)
+        idx.add_package(p)
+        entries.append(p.name)
 
     idx.write()
     prt("Indexed ", len(entries), 'entries')

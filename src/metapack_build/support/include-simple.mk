@@ -3,6 +3,10 @@
 ## for comments and course-enrollments
 ##
 
+# to force a build:
+
+# make build ARGS="-F"
+
 
 REPO_ROOT=$(shell git rev-parse --show-toplevel)
 
@@ -12,7 +16,7 @@ TAG_ARG=$(and $(TAGS),"-t $(TAGS)" )
 # Optional profile name in .aws/credentials
 S3_PROFILE_ARG=$(and $(S3_PROFILE),"-p$(S3_PROFILE)" )
 
-.PHONY:  clean build s3 ckan list info wp touch
+.PHONY:  clean build s3 ckan list info wp touch -F
 
 default: build ;
 
@@ -25,7 +29,7 @@ list:
 %.build :  %/metadata.csv
 	@echo ==== $* ====
 	@ cd $*  && \
-	 	mp -q  make -r  -b -s $(S3_BUCKET) -w $(WP_SITE) $(GROUP_ARG) $(TAG_ARG) || \
+	 	mp -q  make $(ARGS) -r  -b -s $(S3_BUCKET) -w $(WP_SITE) $(GROUP_ARG) $(TAG_ARG) || \
 	 	echo "\033[0;31mFAILED: $*\033[0m"
 
 # Make a package, using the packages'

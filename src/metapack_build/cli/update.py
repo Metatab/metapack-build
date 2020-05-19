@@ -8,7 +8,7 @@ CLI program for managing packages
 import argparse
 
 from metapack import Downloader
-from metapack.cli.core import (MetapackCliMemo, prt, update_name, warn,
+from metapack.cli.core import (MetapackCliMemo, err, prt, update_name, warn,
                                write_doc)
 from metapack_build.core import process_schemas, update_schema_properties
 
@@ -56,6 +56,15 @@ def update(subparsers):
     -X/--clean-properties will remove any arg properties in a section that have
     no values. For instance, this will remove the Description arg property if
     no Descriptions are set.
+
+
+    -U/--custom-update Runs a puthon function name custom_update(), located
+    in the pylib module. The funcction can recieve the remainder arguments, which
+    can be specified after a '--' argument, if the metatab file is explicitly specified,
+    usually as the current directory, '.'. For instance:
+
+        mp update -U . -- --foo --bar
+
 
 
     """
@@ -117,8 +126,17 @@ def update(subparsers):
     parser.add_argument('-G', '--coverage', action='store_true', default=False,
                         help='Calculate spatial and temporal coverage')
 
+    parser.add_argument('-U', '--custom-update', action='store_true', default=False,
+                        help='Run the custom update function, declared in pylib:custom_update')
+
+    parser.add_argument('-t', '--touch', action='store_true', default=False,
+                        help='Update the modification time of the metadata to be the same as the FilesystemPackage, '
+                             'preventing an update build.')
+
     parser.add_argument('metatabfile', nargs='?',
                         help="Path or URL to a metatab file. If not provided, defaults to 'metadata.csv' ")
+
+    parser.add_argument('remainder', nargs=argparse.REMAINDER)
 
 
 def run_update(args):
@@ -147,6 +165,9 @@ def run_update(args):
     if m.args.promote:
         update_promote(m)
 
+    if m.args.custom_update:
+        update_custom(m)
+
     if m.mtfile_url.scheme == 'file' and m.args.name:
         mod_version = m.args.version if m.args.version \
             else '+' if m.args.increment \
@@ -157,6 +178,9 @@ def run_update(args):
 
     if m.args.coverage:
         update_coverage(m)
+
+    if m.args.touch:
+        touch_metadata(m)
 
 
 def increment_version(m):
@@ -322,3 +346,23 @@ def resource_time(r):
 
 def update_coverage(m):
     raise NotImplementedError()
+
+
+def update_custom(m):
+    try:
+        r = m.doc.get_lib_module_dict()
+        r['custom_update'](m.doc, m.args.remainder)
+    except ImportError:
+        err('No custom function')
+
+
+def touch_metadata(m):
+    import os
+
+    p = m.filesystem_package
+
+    t = p.package_build_time()
+
+    os.utime(m.doc.ref.fspath, (t, t))
+
+    prt(f"Set times for '{m.doc.ref.fspath}'' to {t}")
