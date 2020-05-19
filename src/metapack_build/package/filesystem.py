@@ -12,10 +12,10 @@ from os.path import dirname, join
 from nbconvert.writers import FilesWriter
 
 from metapack.appurl import MetapackUrl
-from metapack.util import datetime_now, ensure_dir, slugify
+from metapack.util import datetime_now, ensure_dir
 from metatab import DEFAULT_METATAB_FILE
 from metatab.datapackage import convert_to_datapackage
-from metatab.util import md5_file
+from metatab.util import md5_file, slugify
 from rowgenerators import parse_app_url
 
 from .core import PackageBuilder
