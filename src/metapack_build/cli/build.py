@@ -145,7 +145,15 @@ def _build_add_options(parser):
                         help="Don't index after building")
 
 
-def build_cmd(args):
+def build_cmd(args):  # For calling from cli
+
+    _build_cmd(args)
+
+    return 0
+
+
+# This is for calling internally, esp from `mp make`, returns number of changes
+def _build_cmd(args):
     from rowgenerators.rowpipe.exceptions import TooManyCastingErrors
 
     downloader.set_callback((build_downloader_callback))
@@ -180,7 +188,7 @@ def build_cmd(args):
 
     clean_cache(m.cache)
 
-    return 0
+    return changes
 
 
 @contextmanager
@@ -447,7 +455,6 @@ def index_packages(m):
 
     entries = []
     for p in walk_packages(None, parse_app_url(str(m.package_root.fspath))):
-
         prt("Indexing:", p.ref)
         idx.add_package(p)
         entries.append(p.name)

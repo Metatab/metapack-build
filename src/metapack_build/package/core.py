@@ -8,27 +8,24 @@ from genericpath import exists
 from hashlib import sha1
 from itertools import islice
 from os import walk
-from os.path import dirname, abspath, basename, splitext, join, isdir
+from os.path import abspath, basename, dirname, isdir, join, splitext
 from time import time
 
-import unicodecsv as csv  # legacy; shoudl convert to csv package.
-from metapack.appurl import MetapackUrl, MetapackPackageUrl
-from metapack.exc import PackageError
-from metapack.terms import Resource
-from metapack.util import Bunch
-from metatab import DEFAULT_METATAB_FILE
-from rowgenerators import Downloader as _Downloader, get_generator, parse_app_url
-from rowgenerators.util import slugify
 from tableintuit import RowIntuiter
 
+from metapack.exc import PackageError
+from metapack.terms import Resource
+from rowgenerators import get_generator, parse_app_url
+from rowgenerators.util import slugify
+
+import unicodecsv as csv  # legacy; should convert to csv package.
 
 
 class PackageBuilder(object):
-
     type_code = 'unk'
     type_suffix = ''
 
-    def __init__(self, source_ref=None, package_root = None,  callback=None, env=None):
+    def __init__(self, source_ref=None, package_root=None, callback=None, env=None):
         from metapack.doc import MetapackDoc
 
         self._downloader = source_ref._downloader
@@ -41,9 +38,9 @@ class PackageBuilder(object):
         self._callback = callback
         self._env = env if env is not None else {}
 
-        self._source_doc = MetapackDoc(self._source_ref, cache=self._cache) # this one stays constant
+        self._source_doc = MetapackDoc(self._source_ref, cache=self._cache)  # this one stays constant
 
-        self._doc = MetapackDoc(self._source_ref, cache=self._cache) # This one gets edited
+        self._doc = MetapackDoc(self._source_ref, cache=self._cache)  # This one gets edited
 
         self._last_write_path = None
 
@@ -57,7 +54,6 @@ class PackageBuilder(object):
     @property
     def source_url(self):
         return parse_app_url(self._source_ref)
-
 
     def exists(self):
         return self.package_path.exists()
@@ -75,7 +71,6 @@ class PackageBuilder(object):
 
         for r in self.doc['Resources'].find('root.resource'):
             yield r
-
 
     @property
     def datafiles(self):
@@ -127,7 +122,7 @@ class PackageBuilder(object):
 
             @property
             def resources(self):
-                if not 'resources' in self.doc:
+                if 'resources' not in self.doc:
                     self.doc.get_or_new_section('Resources',
                                                 "Name Schema Space Time StartLine HeaderLines Encoding Description".split())
 
@@ -135,21 +130,21 @@ class PackageBuilder(object):
 
             @property
             def contacts(self):
-                if not 'Contacts' in self.doc:
+                if 'Contacts' not in self.doc:
                     self.doc.get_or_new_section('Contacts', 'Email Org Url'.split())
 
                 return self.doc['Contacts']
 
             @property
             def documentation(self):
-                if not 'Documentation' in self.doc:
+                if 'Documentation' not in self.doc:
                     self.doc.get_or_new_section('Documentation', 'Title Schema Description '.split())
 
                 return self.doc['documentation']
 
             @property
             def schema(self):
-                if not 'Schema' in self.doc:
+                if 'Schema' not in self.doc:
                     self.doc.get_or_new_section('Schema', 'DataType Description'.split())
 
                 return self.doc['schema']
@@ -199,10 +194,8 @@ class PackageBuilder(object):
     def run_row_intuit(url, cache):
 
         for encoding in ('ascii', 'utf8', 'latin1'):
-
             rows = list(islice(get_generator(url), 5000))
             return encoding, RowIntuiter().run(list(rows))
-
 
         raise Exception('Failed to convert with any encoding')
 
@@ -231,11 +224,11 @@ class PackageBuilder(object):
 
     def warn(self, *args):
         if self._callback:
-            self._callback('WARN', *args)
+            self._callback('⚠️ WARN', *args)
 
     def err(self, *args):
         if self._callback:
-            self._callback('ERROR', *args)
+            self._callback('‼️ ERROR', *args)
 
     def add_single_resource(self, ref, **properties):
         """ Add a single resource, without trying to enumerate it's contents
@@ -269,7 +262,7 @@ class PackageBuilder(object):
             try:
                 int(name[0])
                 name = 'a' + name[1:]
-            except:
+            except Exception:
                 pass
 
         if 'name' in properties:
@@ -287,27 +280,6 @@ class PackageBuilder(object):
         possibly adding multiple entries for an excel spreadsheet or ZIP file"""
 
         raise NotImplementedError("Still uses decompose_url")
-
-        du = Bunch(decompose_url(ref))
-
-        added = []
-        if du.proto == 'file' and isdir(ref):
-            for f in self.find_files(ref, ['csv']):
-
-                if f.endswith(DEFAULT_METATAB_FILE):
-                    continue
-
-                if self._doc.find_first('Root.Datafile', value=f):
-                    self.prt("Datafile exists for '{}', ignoring".format(f))
-                else:
-                    added.extend(self.add_resource(f, **properties))
-        else:
-            self.prt("Enumerating '{}'".format(ref))
-
-            for c in enumerate_contents(ref, self._cache):
-                added.append(self.add_single_resource(c.rebuild_url(), **properties))
-
-        return added
 
     def _clean_doc(self, doc=None):
         """Clean the doc before writing it, removing unnecessary properties and doing other operations."""
@@ -330,9 +302,9 @@ class PackageBuilder(object):
 
         schema = doc['Schema']
 
-        ## FIXME! This is probably dangerous, because the section args are changing, but the children
-        ## are not, so when these two are combined in the Term.properties() acessors, the values are off.
-        ## Because of this, _clean_doc should be run immediately before writing the doc.
+        # FIXME! This is probably dangerous, because the section args are changing, but the children
+        # are not, so when these two are combined in the Term.properties() acessors, the values are off.
+        # Because of this, _clean_doc should be run immediately before writing the doc.
         for arg in ['altname', 'transform']:
             for e in list(schema.args):
                 if e.lower() == arg:
@@ -342,7 +314,7 @@ class PackageBuilder(object):
             for col in table.find('Column'):
                 try:
                     col.value = col['altname'].value
-                except:
+                except Exception:
                     pass
 
                 col['altname'] = None
@@ -350,9 +322,8 @@ class PackageBuilder(object):
 
         # Remove any DSNs
 
-        #for dsn_t in self.doc.find('Root.Dsn'):
+        # for dsn_t in self.doc.find('Root.Dsn'):
         #    self.doc.remove_term(dsn_t)
-
 
         return doc
 
@@ -399,7 +370,7 @@ class PackageBuilder(object):
                 try:
                     if not r.headers:
                         raise PackageError("Resource {} does not have header. Have schemas been generated?"
-                                            .format(r.name))
+                                           .format(r.name))
                 except AttributeError:
                     raise PackageError("Resource '{}' of type {} does not have a headers property"
                                        .format(r.url, type(r)))
@@ -412,9 +383,6 @@ class PackageBuilder(object):
                         pass
                     else:
                         raise e
-
-
-
 
     def _load_resource(self, source_r, abs_path):
         raise NotImplementedError()
@@ -440,12 +408,12 @@ class PackageBuilder(object):
                     i += 1
 
                     if time() - last_time > 25:
-                        dt = time()-start_time
-                        rate = float(i)/(dt)
-                        self.prt(f'Processed {i} rows in {round(dt,0)} sec, rate = {round(rate,2)} rows/sec')
+                        dt = time() - start_time
+                        rate = float(i) / (dt)
+                        self.prt(f'Processed {i} rows in {round(dt, 0)} sec, rate = {round(rate, 2)} rows/sec')
                         last_time = time()
 
-            except:
+            except Exception:
                 import sys
                 print("write_csv: ERROR IN ROW", row, file=sys.stderr)
                 raise
@@ -457,10 +425,9 @@ class PackageBuilder(object):
 
         finally:
             dt = time() - start_time
-            rate = round((float(i) / (dt)),2) if dt != 0 else 'undef'
-            self.prt(f'Processed {i} rows in {round(dt,0)} sec, rate = {rate} rows/sec')
+            rate = round((float(i) / (dt)), 2) if dt != 0 else 'undef'
+            self.prt(f'Processed {i} rows in {round(dt, 0)} sec, rate = {rate} rows/sec')
             f.close()
-
 
     def _get_ref_contents(self, t, working_dir=None):
 
@@ -485,14 +452,12 @@ class PackageBuilder(object):
             if not resource:
                 continue
 
-            if t.term_is('Root.Documentation'):
+            # if t.term_is('Root.Documentation'):
                 # Prefer the slugified title to the base name, because in cases of collections
                 # of many data releases, like annual datasets, documentation files may all have the same name,
                 # but the titles should be different.
-                real_name_base, ext = splitext(resource.resource_file)
-
-                name = t.get_value('name') if t.get_value('name') else real_name_base
-                real_name = slugify(name) + ext
+                # real_name_base, ext = splitext(resource.resource_file)
+                # name = t.get_value('name') if t.get_value('name') else real_name_base
 
             self._load_documentation(t, resource.read(), resource.resource_file)
 
@@ -502,21 +467,22 @@ class PackageBuilder(object):
 
         if t and (t.value or '').strip():
 
-            # Since the text is comming from a notebook, it probably does not have a title
+            # Since the text is coming from a notebook, it probably does not have a title
             t['title'] = 'Readme'
 
-            readme = '# '+ (self.doc.get_value('Root.Title') or '').strip()
+            readme = '# ' + (self.doc.get_value('Root.Title') or '').strip()
             if self.doc.description:
                 readme += '\n\n' + (self.doc.description or '').strip()
 
             if (t.value or '').strip():
-                readme += '\n\n' +(t.value or '').strip()
+                readme += '\n\n' + (t.value or '').strip()
 
             self._load_documentation(t, readme.encode('utf8'), 'README.md')
 
-
     def _load_documentation(self, term, contents, file_name):
         raise NotImplementedError()
+
+    excludes = ['__pycache__', '-errors.ipynb', '-executed.ipynb', '-checkpoint.ipynb']
 
     def _load_files(self):
         """Load other files"""
@@ -525,7 +491,7 @@ class PackageBuilder(object):
             for (dr, _, files) in walk(path):
                 for fn in files:
 
-                    if '__pycache__' in fn:
+                    if any([e in fn for e in self.excludes]):
                         continue
 
                     relpath = dr.replace(self.source_dir, '').strip('/')
@@ -534,9 +500,9 @@ class PackageBuilder(object):
 
                     resource = src.get_resource()
 
-                    self._load_file( dest, resource.read())
+                    self._load_file(dest, resource.read())
 
-        for term in self.resources(term = 'Root.Pythonlib'):
+        for term in self.resources(term='Root.Pythonlib'):
 
             uv = parse_app_url(term.value)
             ur = parse_app_url(self.source_dir)
@@ -554,19 +520,18 @@ class PackageBuilder(object):
                 # Load it as a URL
                 f = self._get_ref_contents(term)
                 try:
-                    self._load_file(term.value,f.read() )
+                    self._load_file(term.value, f.read())
                 except Exception as e:
                     raise PackageError("Failed to load file for '{}': {} ".format(term.value, e))
 
+        # Copy the whole notebooks director, excluding some files.
         nb_dir = join(self.source_dir, 'notebooks')
 
         if exists(nb_dir) and isdir(nb_dir):
             copy_dir(nb_dir)
 
-
-    def _load_file(self,  filename, contents):
+    def _load_file(self, filename, contents):
         raise NotImplementedError()
-
 
     def check_is_ready(self):
         pass
@@ -578,7 +543,7 @@ class PackageBuilder(object):
 
         nv_name = self.doc.as_version(None)
 
-        from_path =  abspath(self._last_write_path or self.package_path.path)
+        from_path = abspath(self._last_write_path or self.package_path.path)
 
         to_path = join(dirname(from_path), nv_name + self.type_suffix)
 
@@ -590,12 +555,12 @@ class PackageBuilder(object):
     def move_to_nv_name(self):
         """After a save, move a file package to a non-versioned name"""
 
-        from os.path import abspath, islink
-        from os import unlink, rename
+        from os.path import abspath
+        from os import rename
 
         nv_name = self.doc.as_version(None)
 
-        from_path =  abspath(self._last_write_path or self.package_path.path)
+        from_path = abspath(self._last_write_path or self.package_path.path)
 
         to_path = join(dirname(from_path), nv_name + self.type_suffix)
 
@@ -603,7 +568,6 @@ class PackageBuilder(object):
 
     def package_build_time(self):
         from genericpath import getmtime
-
 
         try:
             path = self.path.path
@@ -620,7 +584,6 @@ class PackageBuilder(object):
 
         """
         from genericpath import getmtime
-
 
         try:
             path = self.path.path
@@ -639,5 +602,3 @@ class PackageBuilder(object):
 
 
 TableColumn = namedtuple('TableColumn', 'path name start_line header_lines columns')
-
-

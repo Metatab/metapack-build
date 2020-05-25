@@ -10,15 +10,13 @@ from datetime import datetime, timedelta
 
 from dateutil.parser import parse
 
-from metapack.cli.core import MetapackCliMemo
+from metapack.cli.core import MetapackCliMemo, warn
 from metapack.cli.mp import base_parser
 from metapack.package import Downloader
 from metapack.util import iso8601_duration_as_seconds
-from metapack_build.cli.build import build_cmd
+from metapack_build.cli.build import _build_cmd
 from metapack_build.cli.s3 import run_s3
 from metapack_build.cli.touch import write_hashes
-
-downloader = Downloader.get_instance()
 
 
 def make_args(subparsers):
@@ -70,6 +68,9 @@ def make_args(subparsers):
     parser.add_argument('-F', '--force', action='store_true', default=False,
                         help="Force the build")
 
+    parser.add_argument('-n', '--dry-run', action='store_true', default=False,
+                        help="Don't make, just report if package would be built")
+
     parser.add_argument('-I', '--increment', action='store_true', default=False,
                         help="With -b, increment the version number before building")
 
@@ -112,11 +113,9 @@ def next_update_time(m):
     return (last_mod + uf).date()
 
 
-def should_build(args):
-    force = args.force
+def should_build(m):
+    force = m.args.force
 
-    downloader = Downloader.get_instance()
-    m = MetapackCliMemo(args, downloader)
     p = m.filesystem_package
 
     now = datetime.now().date()
@@ -154,7 +153,13 @@ def should_build(args):
 def make_cmd(args):
     # Always turn the cache off; builds won't update otherwise
 
-    sb, reason = should_build(args)
+    downloader = Downloader.get_instance()
+
+    m = MetapackCliMemo(args, downloader)
+
+    sb, reason = should_build(m)
+
+    print(f"🛠  {m.doc.name}")
 
     if not sb:
         print(f"☑️  Not building; {reason}")
@@ -162,13 +167,19 @@ def make_cmd(args):
     else:
         print(f"⚙️  Building: {reason}")
 
+    if args.dry_run:
+        return
+
+    if not any([args.build, args.s3, args.wordpress_site]):
+        args.build = True
+
     if args.build:
         downloader = Downloader.get_instance()
         downloader.use_cache = False
 
         ns = mk_ns(args, 'build', '-X', '-F', '-f', '-z' if args.zip else '')
 
-        do_uploads = build_is_different = build_cmd(ns)
+        do_uploads = build_is_different = _build_cmd(ns)
 
         downloader.reset_callback()
 
@@ -186,22 +197,29 @@ def make_cmd(args):
         run_s3(ns)
 
     if do_uploads and args.wordpress_site:
-        from metapack_wp.wp import run_wp
-        ns = mk_ns(args, 'wp')
-        ns.site_name = args.wordpress_site
-        ns.source = args.metatabfile
-        ns.group = args.group
-        ns.tag = args.tag
 
-        run_wp(ns)
+        try:
+            from metapack_wp.wp import run_wp
+            ns = mk_ns(args, 'wp')
+            ns.site_name = args.wordpress_site
+            ns.source = args.metatabfile
+            ns.group = args.group
+            ns.tag = args.tag
+
+            run_wp(ns)
+        except ModuleNotFoundError:
+            warn("Can't publish to Wordpress: {str(e)}")
+
+    m = MetapackCliMemo(args, downloader)
 
     # If the build changed, update the version for the next build
     if build_is_different:
         # Increment the version number
-        m = MetapackCliMemo(args, downloader)
+
         m.doc.update_name(mod_version='+')
-        m.doc.write()
 
         print(f"➕ incremented version to  {m.doc.name}")
 
         write_hashes(m)
+
+        m.doc.write()  # Updates modified time

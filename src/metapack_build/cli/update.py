@@ -6,6 +6,8 @@ CLI program for managing packages
 """
 
 import argparse
+from pathlib import Path
+from shutil import copyfile
 
 from metapack import Downloader
 from metapack.cli.core import (MetapackCliMemo, err, prt, update_name, warn,
@@ -133,6 +135,9 @@ def update(subparsers):
                         help='Update the modification time of the metadata to be the same as the FilesystemPackage, '
                              'preventing an update build.')
 
+    parser.add_argument('-f', '--files', action='store_true', default=False,
+                        help='Add missing source package files, such as .gitignore, tox.ini, requirements.txt and tasks.py')
+
     parser.add_argument('metatabfile', nargs='?',
                         help="Path or URL to a metatab file. If not provided, defaults to 'metadata.csv' ")
 
@@ -167,6 +172,9 @@ def run_update(args):
 
     if m.args.custom_update:
         update_custom(m)
+
+    if m.args.files:
+        add_files(m)
 
     if m.mtfile_url.scheme == 'file' and m.args.name:
         mod_version = m.args.version if m.args.version \
@@ -354,6 +362,29 @@ def update_custom(m):
         r['custom_update'](m.doc, m.args.remainder)
     except ImportError:
         err('No custom function')
+
+
+def add_files(m):
+    add_missing_files(m.doc.package_url.fspath)
+
+
+def add_missing_files(package_dir):
+    import metapack_build.support as support_dir
+
+    src_dir = Path(support_dir.__file__).parent
+
+    for src, dest in [('gitignore', '.gitignore'),
+                      ('tox.ini', 'tox.ini'),
+                      ('requirements.txt', 'requirements.txt'),
+                      ('tasks.py', 'tasks.py')]:
+
+        dest_p = Path(package_dir).joinpath(dest)
+
+        if not dest_p.exists():
+            copyfile(src_dir.joinpath(src), dest_p)
+            prt('Creating file: ', dest)
+        else:
+            prt('File exists:', dest)
 
 
 def touch_metadata(m):

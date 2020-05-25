@@ -112,9 +112,9 @@ class FileSystemPackageBuilder(PackageBuilder):
 
         self.load_declares()
 
-        self._load_documentation_files()
-
         self._load_resources()
+
+        self._load_documentation_files()
 
         self._load_files()
 
