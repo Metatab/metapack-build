@@ -71,7 +71,7 @@ def build(c, force=None):
     """Build a filesystem package."""
     for sp_ns in ns_foreach_task_subdir():
         print("-- running build in ", os.getcwd())
-        sp_ns.tasks.build(c, force, fail_is_ok=True)
+        sp_ns.tasks.build(c, force)
 
 
 @task
@@ -167,7 +167,7 @@ ns = Collection(build, publish, make, clean, config, pip,
                 git_update, git_commit, git_status, git_push,
                 tox)
 
-metapack_config = get_config().get('invoke', {})
+metapack_config = (get_config() or {}).get('invoke', {})
 
 ns.configure(
     {
