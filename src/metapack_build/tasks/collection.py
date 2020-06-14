@@ -26,12 +26,20 @@ def signal_handler(sig, frame):
 signal.signal(signal.SIGINT, signal_handler)
 
 
-def foreach_metapack_subdir():
-    """For each iteration of the loop, change the working directory into
-    a package subdirectory"""
-    for d in Path('.').glob('*/metadata.csv'):
+def foreach_metapack_subdir(ordered_dirs=[]):
+    """ For each iteration of the loop, change the working directory into
+    a package subdirectory
+    :param ordered_dirs: Directories to process first, in order.
+    :return:
+    """
+    dirs = [d.parent for d in sorted(Path('.').glob('*/metadata.csv'))
+            if str(d.parent) not in ordered_dirs]
+
+    dirs = [Path(d) for d in ordered_dirs] + sorted(list(dirs))
+
+    for d in dirs:
+        d = d.resolve()
         print("> ", d)
-        d = d.parent.resolve()
 
         curdir = os.getcwd()
 
@@ -98,6 +106,16 @@ def make(c, force=None, s3_bucket=None, wp_site=None, groups=[], tags=[]):
 
 
 @task
+def install(c, dest):
+    """Copy most recently build version of packages to a destination directory"""
+    for sp_ns in ns_foreach_task_subdir():
+        try:
+            sp_ns.tasks.install(c, dest)
+        except UnexpectedExit:
+            pass
+
+
+@task
 def clean(c):
     """Build, write to S3, and publish to wordpress, but only if necessary"""
 
@@ -110,7 +128,11 @@ def clean(c):
 
 @task
 def pip(c):
-    """Build, write to S3, and publish to wordpress, but only if necessary"""
+    """Install any python packages specified in the collection requirements.txt file
+     and the requirements.txt files of the packages"""
+
+    if Path('requirements.txt').exists():
+        c.run("pip install -r requirements.txt")
 
     for sp_ns in ns_foreach_task_subdir():
         try:
@@ -165,7 +187,7 @@ def git_push(c):
 
 ns = Collection(build, publish, make, clean, config, pip,
                 git_update, git_commit, git_status, git_push,
-                tox)
+                tox, install)
 
 metapack_config = (get_config() or {}).get('invoke', {})
 

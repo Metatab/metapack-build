@@ -10,6 +10,7 @@ from pathlib import Path
 from invoke import Collection, task
 
 from metapack.cli.core import get_config
+from rowgenerators import parse_app_url
 
 
 @task(default=True, optional=['force'])
@@ -65,6 +66,31 @@ def make(c, force=None, s3_bucket=None, wp_site=None, groups=[], tags=[]):
 
 
 @task
+def install(c, dest):
+    p = Path('.').joinpath('_packages', '.last_build')
+
+    if not Path(dest).exists():
+        Path(dest).mkdir(parents=True)
+
+    if p.exists():
+
+        # Get the name of the File package
+        lb = p.read_text().strip()
+        u = parse_app_url(lb)
+        fp = u.fspath.parent
+
+        # Make them concrete
+        zp = Path(fp.with_suffix('.zip'))
+        fp = Path(fp)
+
+        if fp.exists():
+            c.run(f"rsync -rva {str(fp)} '{str(dest)}/'")
+
+        if zp.exists():
+            c.run(f"rsync -rva {str(zp)} '{str(dest)}/'")
+
+
+@task
 def clean(c):
     c.run('rm -rf _packages')
 
@@ -74,7 +100,7 @@ def pip(c):
     """Install any python packages specified in a requirements.txt file"""
 
     if Path('requirements.txt').exists():
-        c.run('pip install -q -r requirements.txt')
+        c.run('pip install -r requirements.txt')
 
 
 @task
@@ -92,18 +118,49 @@ def config(c):
     """))
 
 
-ns = Collection(build, publish, make, config, clean, pip)
+@task
+def dummy(c):
+    """A Dummy tasks for overridding other tasks, such as publish when you dont want
+    a dataset published"""
+    pass
 
-metapack_config = get_config().get('invoke', {})
+
+ns = Collection(build, publish, make, config, clean, pip, install)
+
+
+# Pull in metapack configuration
+
+def merge_config(key):
+    from pathlib import Path
+    import yaml
+    metapack_config = get_config().get('invoke', {})
+
+    p = Path('../invoke.yaml')
+
+    if p.exists():
+        with p.open() as f:
+            iconfig = yaml.safe_load(f)
+
+        try:
+            return iconfig['metapack'][key]
+        except (KeyError, TypeError):
+            pass
+
+    if metapack_config.get(key):
+        return metapack_config.get(key)
+
+    else:
+        return None
+
 
 ns.configure(
     {
         'metapack':
             {
-                's3_bucket': metapack_config.get('s3_bucket'),
-                'wp_site': metapack_config.get('wp_site'),
-                'groups': None,
-                'tags': None
+                's3_bucket': merge_config('s3_bucket'),
+                'wp_site': merge_config('wp_site'),
+                'groups': merge_config('groups'),
+                'tags': merge_config('tags')
             }
     }
 )

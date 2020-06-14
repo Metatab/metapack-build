@@ -189,3 +189,10 @@ def find_csv_packages(m, downloader):
     if package_path.exists():
         r = open_package(package_path, downloader=downloader)
         return r
+
+    pkgs = list(reversed(sorted(list((f.stat().st_ctime, f) for f in sorted(pkg_dir.fspath.glob('*.csv'))))))
+
+    if pkgs:
+        return open_package(pkgs[0][1], downloader=downloader)
+
+    return None

@@ -139,7 +139,7 @@ def run_s3(args):
         prt("-------------------------------")
 
     else:
-        prt("Did not find any packages to upload")
+        prt("⚠️ Did not find any packages to upload to S3")
 
     m.doc['Root'].get_or_new_term('Root.Issued').value = datetime_now()
 
