@@ -9,6 +9,7 @@ import importlib.util
 import os
 import signal
 import sys
+from copy import deepcopy
 from pathlib import Path
 
 from invoke import Collection, UnexpectedExit, task
@@ -85,6 +86,7 @@ def build(c, force=None):
 @task
 def publish(c, s3_bucket=None, wp_site=None, groups=[], tags=[]):
     "Publish to s3 and wordpress, if the proper bucket and site variables are defined"
+    from copy import deepcopy
     for sp_ns in ns_foreach_task_subdir():
         try:
             sp_ns.tasks.publish(c, s3_bucket=s3_bucket, wp_site=wp_site,
@@ -121,7 +123,7 @@ def clean(c):
 
     for sp_ns in ns_foreach_task_subdir():
         try:
-            sp_ns.tasks.ckean(c)
+            sp_ns.tasks.clean(c)
         except UnexpectedExit:
             pass
 
@@ -176,7 +178,7 @@ def git_status(c):
 @task
 def git_commit(c, message):
     """Run git commit -a  on all submodules"""
-    c.run(f"git submodule foreach 'git commit -a -m \'{message}\''")
+    c.run(f"git submodule foreach 'git commit -a -m \"{message}\"'")
 
 
 @task

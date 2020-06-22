@@ -9,6 +9,7 @@ from pathlib import Path
 
 from invoke import Collection, task
 
+from metapack import open_package
 from metapack.cli.core import get_config
 from rowgenerators import parse_app_url
 
@@ -24,8 +25,15 @@ def build(c, force=None):
 
 @task
 def publish(c, s3_bucket=None, wp_site=None, groups=[], tags=[]):
-    " Publish to s3 and wordpress, if the proper bucket and site variables are defined"
+    """ Publish to s3 and wordpress, if the proper bucket and site variables are defined
 
+    If the package should not be published, add a 'Redistribution'  Term to the root level
+    of the metadata. It can take two values:
+
+        "hidden": publish to S3, but not wordpress
+        "private": Don't publish to either S3 or Wordpress
+
+    """
     wp_site = c.metapack.wp_site or wp_site
     s3_bucket = c.metapack.s3_bucket or s3_bucket
 
@@ -35,13 +43,23 @@ def publish(c, s3_bucket=None, wp_site=None, groups=[], tags=[]):
     group_flags = ' '.join([f"-g{g}" for g in groups])
     tag_flags = ' '.join([f"-t{t}" for t in tags])
 
-    if s3_bucket:
+    pkg = open_package('./metadata.csv')
+
+    redist = pkg.find_first_value('Root.Redistribution')
+    name = pkg.name
+
+    if redist == 'private':
+        print(f"⚠️  Package {name} is private; won't upload to s3")
+    elif s3_bucket:
         c.run(f"mp s3 -s {s3_bucket}", pty=True)
-    if wp_site:
+
+    if redist in ('private','hidden'):
+        print(f"⚠️  Package {name} is {redist}; won't publish to wordpress")
+    elif wp_site:
         c.run(f"mp wp -s {wp_site} {group_flags} {tag_flags} -p", pty=True)
 
-    if not s3_bucket and not wp_site:
-        print("Neither s3 bucket nor wp site config specified; nothing to do")
+    if redist not in ('private','hidden') and not s3_bucket and not wp_site:
+        print("⚠️  Neither s3 bucket nor wp site config specified; nothing to do")
 
 
 @task(optional=['force'])
