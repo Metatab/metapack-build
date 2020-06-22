@@ -39,6 +39,9 @@ class CsvPackageBuilder(PackageBuilder):
 
         self._last_write_path = None
 
+        if'Distributions' not in self.doc:
+            self.doc.new_section('Distributions', ['Type'])
+
     @classmethod
     def make_package_path(cls, package_root, package_name):
 
@@ -52,7 +55,7 @@ class CsvPackageBuilder(PackageBuilder):
 
     def _load_resource(self, source_r, abs_path=False):
         """The CSV package has no resources, so we just need to resolve the URLs to them. Usually, the
-            CSV package is built from a file system ackage on a publically acessible server. """
+            CSV package is built from a file system package on a publicly accessible server. """
 
         r = self.doc.resource(source_r.name)
 
@@ -66,9 +69,14 @@ class CsvPackageBuilder(PackageBuilder):
     def set_distributions(self, dist_urls):
 
         # Create Root.Distribution terms for all of the dist urls.
+
         for au in dist_urls:
-            if not self.doc.find_first('Root.Distribution', str(au)):
-                self.doc['Root'].new_term('Root.Distribution', au)
+            if not self.doc['Distributions'].find_first('Root.Distribution', str(au)):
+                du = self.doc['Distributions'].new_term('Root.Distribution', au)
+                if du.type == 'fs':
+                    html_url = du.package_url.inner.join_dir('index.html')
+                    self.doc['Documentation'].new_term('Root.Documentation', html_url)
+                    self.doc['Distributions'].new_term('Root.Documentation', html_url)
 
     def save(self, path=None):
         from metapack import MetapackPackageUrl
