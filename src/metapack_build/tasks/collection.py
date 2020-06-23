@@ -9,7 +9,6 @@ import importlib.util
 import os
 import signal
 import sys
-from copy import deepcopy
 from pathlib import Path
 
 from invoke import Collection, UnexpectedExit, task
@@ -40,7 +39,7 @@ def foreach_metapack_subdir(ordered_dirs=[]):
 
     for d in dirs:
         d = d.resolve()
-        print("> ", d)
+        print("⏩ ", d)
 
         curdir = os.getcwd()
 
@@ -55,7 +54,7 @@ def ns_foreach_task_subdir():
     """Return the invoke Collection ( ns ) for each subdir that has a tasks.py
     and a metadata.csv file"""
     for d in Path('.').glob('*/metadata.csv'):
-        print("> ", d)
+        print("⏩ ", d)
         d = d.parent.resolve()
         incl_path = d.joinpath('tasks.py')
 
@@ -86,7 +85,6 @@ def build(c, force=None):
 @task
 def publish(c, s3_bucket=None, wp_site=None, groups=[], tags=[]):
     "Publish to s3 and wordpress, if the proper bucket and site variables are defined"
-    from copy import deepcopy
     for sp_ns in ns_foreach_task_subdir():
         try:
             sp_ns.tasks.publish(c, s3_bucket=s3_bucket, wp_site=wp_site,

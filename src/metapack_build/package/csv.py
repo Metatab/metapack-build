@@ -39,7 +39,7 @@ class CsvPackageBuilder(PackageBuilder):
 
         self._last_write_path = None
 
-        if'Distributions' not in self.doc:
+        if 'Distributions' not in self.doc:
             self.doc.new_section('Distributions', ['Type'])
 
     @classmethod
@@ -75,8 +75,7 @@ class CsvPackageBuilder(PackageBuilder):
                 du = self.doc['Distributions'].new_term('Root.Distribution', au)
                 if du.type == 'fs':
                     html_url = du.package_url.inner.join_dir('index.html')
-                    self.doc['Documentation'].new_term('Root.Documentation', html_url)
-                    self.doc['Distributions'].new_term('Root.Documentation', html_url)
+                    self.doc['Documentation'].new_term('Root.Documentation', html_url, title='Documentation Page')
 
     def save(self, path=None):
         from metapack import MetapackPackageUrl

@@ -53,12 +53,12 @@ def publish(c, s3_bucket=None, wp_site=None, groups=[], tags=[]):
     elif s3_bucket:
         c.run(f"mp s3 -s {s3_bucket}", pty=True)
 
-    if redist in ('private','hidden'):
+    if redist in ('private', 'hidden'):
         print(f"⚠️  Package {name} is {redist}; won't publish to wordpress")
     elif wp_site:
         c.run(f"mp wp -s {wp_site} {group_flags} {tag_flags} -p", pty=True)
 
-    if redist not in ('private','hidden') and not s3_bucket and not wp_site:
+    if redist not in ('private', 'hidden') and not s3_bucket and not wp_site:
         print("⚠️  Neither s3 bucket nor wp site config specified; nothing to do")
 
 
