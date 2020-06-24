@@ -8,7 +8,9 @@ CLI program for storing pacakges in CKAN
 import os
 from os import getcwd, getenv
 from os.path import basename
+from pathlib import Path
 
+import yaml
 from botocore.exceptions import NoCredentialsError
 from tabulate import tabulate
 
@@ -19,6 +21,7 @@ from metapack.index import SearchIndex, search_index_file
 from metapack.package import Downloader
 from metapack.util import datetime_now
 from metapack_build.build import create_s3_csv_package, generate_packages
+from metapack_build.cli.build import last_dist_marker_path
 from metapack_build.package import S3CsvPackageBuilder
 from metapack_build.package.s3 import S3Bucket
 from metatab import DEFAULT_METATAB_FILE
@@ -106,18 +109,20 @@ def run_s3(args):
     dist_urls, fs_p = upload_packages(m)
 
     writes = 0
-
+    csv_url = None
     if dist_urls:
 
         # Create the CSV package, with links into the filesystem package
         if fs_p:
-            access_url, dist_urls = create_s3_csv_package(m, dist_urls, fs_p)
+            access_url, dist_urls, csv_url = create_s3_csv_package(m, dist_urls, fs_p)
         else:
             # If this happens, then no packages were created, because an FS package
             # is always built first
             prt("Not creating CSV package; no FS package was uploaded")
 
         add_to_index(open_package(access_url))
+    else:
+        access_url = None
 
     if dist_urls:
 
@@ -145,6 +150,23 @@ def run_s3(args):
 
     if fs_p:
         clear_cache(m, fs_p.files_processed)
+
+    csv_pkg = open_package(csv_url)
+
+    # Write the last distribution marker
+    dist_info = {
+        'name': m.doc.name,
+        'version': m.doc.version,
+        'access_url': access_url,
+        'path': csv_pkg.path,
+        'issued': datetime_now(),
+        'distributions': {}
+    }
+
+    for d in csv_pkg['Distributions'].find('Root.Distribution'):
+        dist_info['distributions'][d.type] = str(d.metadata_url)
+
+    Path(last_dist_marker_path(m)).write_text(yaml.safe_dump(dist_info))
 
     if m.args.result:
         if writes > 0:

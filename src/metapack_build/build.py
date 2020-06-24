@@ -168,7 +168,7 @@ def create_s3_csv_package(m, dist_urls, fs_p, ):
 
         p.dist_urls.append(nv_access_url)  # More broken encapsulation ...
 
-    return access_url, p.dist_urls
+    return access_url, p.dist_urls, csv_url
 
 
 def generate_packages(m):

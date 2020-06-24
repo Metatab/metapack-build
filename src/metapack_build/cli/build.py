@@ -18,6 +18,7 @@ from metapack import MetapackDoc, MetapackError
 from metapack.cli.core import (MetapackCliMemo, err, extract_path_name,
                                get_lib_module_dict, prt, update_name,
                                write_doc)
+from metapack.constants import PACKAGE_PREFIX
 from metapack.package import Downloader
 from metapack_build.build import (make_csv_package, make_excel_package,
                                   make_filesystem_package, make_zip_package)
@@ -230,6 +231,16 @@ def last_build_marker_path(m):
 
 def trial_build_marker_path(m):
     return Path(m.package_root.fspath, '.trial_build')
+
+
+def last_dist_marker_path(m_or_path):
+    try:
+        return Path(m_or_path.package_root.fspath, '.last_distribution.yaml')
+    except AttributeError:
+        if PACKAGE_PREFIX in str(m_or_path):
+            return Path(m_or_path, '.last_distribution.yaml')
+        else:
+            return Path(m_or_path, PACKAGE_PREFIX, '.last_distribution.yaml')
 
 
 def metatab_derived_handler(m):
