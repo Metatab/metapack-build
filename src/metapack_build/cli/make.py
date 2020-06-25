@@ -127,6 +127,7 @@ def should_build(m):
     else:
         has_uf = False
 
+
     if force:
         reason = 'Forcing build'
         should_build = True
