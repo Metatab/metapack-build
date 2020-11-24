@@ -11,11 +11,11 @@ The program uses the Root.Distributions in the source package to locate packages
 import sys
 from itertools import islice
 
-from metapack.cli.core import prt, err
-from metapack.package import *
 from tableintuit import Stats, TypeIntuiter
 
-from metapack.cli.core import MetapackCliMemo as _MetapackCliMemo, list_rr
+from metapack.cli.core import MetapackCliMemo as _MetapackCliMemo
+from metapack.cli.core import err, list_rr, prt
+from metapack.package import *
 
 downloader = Downloader.get_instance()
 
@@ -74,7 +74,7 @@ def stats(args):
 
     r = m.doc.resource(m.resource)
 
-    schema = [(c['name'], c['datatype']) for c in r.columns()]
+    schema = [(c['header'], c['datatype']) for c in r.columns()]
 
     if m.args.head:
         source = islice(r, m.args.head)
@@ -99,4 +99,3 @@ def stats(args):
                     print("   {} {}".format(count, val))
         else:
             print(s)
-

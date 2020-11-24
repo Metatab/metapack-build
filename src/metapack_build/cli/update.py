@@ -128,6 +128,9 @@ def update(subparsers):
     parser.add_argument('-G', '--coverage', action='store_true', default=False,
                         help='Calculate spatial and temporal coverage')
 
+    parser.add_argument('-g', '--giturl', action='store_true', default=False,
+                        help='Update the Giturl')
+
     parser.add_argument('-U', '--custom-update', action='store_true', default=False,
                         help='Run the custom update function, declared in pylib:custom_update')
 
@@ -166,6 +169,11 @@ def run_update(args):
 
     if m.args.descriptions:
         update_descriptions(m)
+
+    if m.args.giturl:
+        from metapack.cli.core import add_giturl
+        add_giturl(m.doc, force=True)
+        write_doc(m.doc)
 
     if m.args.promote:
         update_promote(m)

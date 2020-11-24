@@ -5,10 +5,10 @@
 
 import json
 import shutil
-from genericpath import exists, getmtime
 from os import makedirs, remove
 from os.path import dirname, join
 
+from genericpath import exists, getmtime
 from nbconvert.writers import FilesWriter
 
 from metapack.appurl import MetapackUrl
@@ -239,8 +239,9 @@ class FileSystemPackageBuilder(PackageBuilder):
         # normal documents.
         try:
             for term in list(self.doc['Documentation'].find('Root.Documentation')):
+
                 u = parse_app_url(term.value)
-                if u.target_format == 'ipynb' and u.proto == 'file':
+                if u is not None and u.target_format == 'ipynb' and u.proto == 'file':
                     notebook_docs.append(term)
                     self.doc.remove_term(term)
         except KeyError:
