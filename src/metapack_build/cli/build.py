@@ -16,7 +16,7 @@ from tableintuit import RowIntuitError
 
 from metapack import MetapackDoc, MetapackError
 from metapack.cli.core import (MetapackCliMemo, err, extract_path_name,
-                               get_lib_module_dict, prt, update_name,
+                               get_lib_module_dict, prt, update_name, warn,
                                write_doc)
 from metapack.constants import PACKAGE_PREFIX
 from metapack.package import Downloader
@@ -276,6 +276,7 @@ def metatab_derived_handler(m):
     nv_link = m.args.nonversion_link
 
     # Remove any data that may have been cached , for instance, from Jupyter notebooks
+
     rmtree(get_materialized_data_cache(doc), ignore_errors=True)
 
     reuse_resources = m.args.reuse_resources
@@ -326,8 +327,6 @@ def metatab_derived_handler(m):
         pf = print
     else:
         pf = prt
-
-    changes = 0
 
     if any(e[2] for e in create_list):
 
@@ -514,7 +513,14 @@ def write_hashes(m):
 
         p = MetapackDoc(hashes['last_package'])
 
-        hashes['last_hashes'] = {r.name: r.raw_row_generator.hash for r in p.resources()}
+        hashes['last_hashes'] = {}
+        for r in p.resources():
+            try:
+                hashes['last_hashes'][r.name] = r.raw_row_generator.hash
+            except AttributeError:
+                raise
+            except Exception as e:
+                warn(f"Failed to generate hash for {r.name}, rrg={type(r)}: {type(e)} {e}")
 
     tm = trial_build_marker_path(m)
 

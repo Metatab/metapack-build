@@ -170,7 +170,7 @@ def git_update(c):
 @task
 def git_status(c):
     """Run git submodule update on all git submodules"""
-    c.run(f"git submodule foreach git status")
+    c.run("git submodule foreach git status")
 
 
 @task
@@ -182,7 +182,15 @@ def git_commit(c, message):
 @task
 def git_push(c):
     """Run git commit -a  on all submodules"""
-    c.run(f"git submodule foreach git push ")
+    c.run("git submodule foreach git push ")
+
+
+@task
+def git_fix_detached(c, message):
+    """Fix detached heads in all of the submodules"""
+    c.run('git submodule update')
+    c.run('git submodule foreach git checkout master')
+    c.run('git submodule foreach git pull origin master')
 
 
 ns = Collection(build, publish, make, clean, config, pip,

@@ -1,6 +1,9 @@
 # Copyright (c) 2019 Civic Knowledge. This file is licensed under the terms of the
 # Revised BSD License, included in this distribution as LICENSE
+from shutil import rmtree
+
 from metapack.cli.core import prt, type_map, warn, write_doc
+from metapack.util import get_materialized_data_cache
 
 
 class skip_iterator(object):
@@ -73,6 +76,8 @@ def process_schemas(mt_file, resource=None, cache=None, clean=False, report_foun
         schemas_processed += 1
 
         rr = r.resolved_url
+
+        rmtree(get_materialized_data_cache(doc), ignore_errors=True)
 
         if isinstance(rr, MetapackDocumentUrl):
             warn('{} is a MetapackDocumentUrl; skipping', r.name)

@@ -91,6 +91,9 @@ def update(subparsers):
     parser.add_argument('-V', '--version',
                         help="Set the version number for single valued version, or the Patch for semantic versions. ")
 
+    parser.add_argument('-S', '--semantic',
+                        help="Convert to semantic versioning", action='store_true')
+
     parser.add_argument('-s', '--schemas', default=False, action='store_true',
                         help='Rebuild the schemas for files referenced in the resource section')
 
@@ -197,6 +200,9 @@ def run_update(args):
 
     if m.args.touch:
         touch_metadata(m)
+
+    if m.args.semantic:
+        to_semantic_version(m)
 
 
 def increment_version(m):
@@ -322,7 +328,7 @@ def promote_terms(self, terms="*.*"):
 
     moved = []
 
-    for arg in set(l.record_term for t in self for l in yield_leaves(t)):
+    for arg in set(leaf.record_term for t in self for leaf in yield_leaves(t)):
         if arg not in self.args:
             moved.append(arg)
             self.add_arg(arg)
@@ -405,3 +411,22 @@ def touch_metadata(m):
     os.utime(m.doc.ref.fspath, (t, t))
 
     prt(f"Set times for '{m.doc.ref.fspath}'' to {t}")
+
+
+def to_semantic_version(m):
+    doc = m.doc
+
+    version = doc['Root'].find_first('Root.Version')
+
+    major = version.find_first('Version.Major')
+
+    if not major:
+        version.new_child('Version.Major', 1)
+        version.new_child('Version.Minor', version.value)
+
+    # Use the update method to fix the rest of it.
+    doc.update_version()
+    doc.write()
+
+    version = doc['Root'].find_first('Root.Version')
+    print("New version: ", version.value)

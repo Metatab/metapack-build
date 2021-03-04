@@ -24,6 +24,31 @@ def build(c, force=None):
 
 
 @task
+def s3(c, s3_bucket=None):
+    """ Publish to s3, if the proper bucket and site variables are defined
+
+    If the package should not be published, add a 'Redistribution'  Term to the root level
+    of the metadata. It can take two values:
+
+        "hidden": publish to S3, but not wordpress
+        "private": Don't publish to either S3 or Wordpress
+
+    """
+
+    s3_bucket = c.metapack.s3_bucket or s3_bucket
+
+    pkg = open_package('./metadata.csv')
+
+    redist = pkg.find_first_value('Root.Redistribution')
+    name = pkg.name
+
+    if redist == 'private':
+        print(f"⚠️  Package {name} is private; won't upload to s3")
+    elif s3_bucket:
+        c.run(f"mp s3 -s {s3_bucket}", pty=True)
+
+
+@task
 def publish(c, s3_bucket=None, wp_site=None, groups=[], tags=[]):
     """ Publish to s3 and wordpress, if the proper bucket and site variables are defined
 
@@ -35,7 +60,6 @@ def publish(c, s3_bucket=None, wp_site=None, groups=[], tags=[]):
 
     """
     wp_site = c.metapack.wp_site or wp_site
-    s3_bucket = c.metapack.s3_bucket or s3_bucket
 
     groups = c.metapack.groups or groups
     tags = c.metapack.tags or tags
@@ -48,10 +72,7 @@ def publish(c, s3_bucket=None, wp_site=None, groups=[], tags=[]):
     redist = pkg.find_first_value('Root.Redistribution')
     name = pkg.name
 
-    if redist == 'private':
-        print(f"⚠️  Package {name} is private; won't upload to s3")
-    elif s3_bucket:
-        c.run(f"mp s3 -s {s3_bucket}", pty=True)
+    s3(c, s3_bucket=s3_bucket)
 
     if redist in ('private', 'hidden'):
         print(f"⚠️  Package {name} is {redist}; won't publish to wordpress")
@@ -143,7 +164,7 @@ def dummy(c):
     pass
 
 
-ns = Collection(build, publish, make, config, clean, pip, install)
+ns = Collection(build, s3, publish, make, config, clean, pip, install)
 
 
 # Pull in metapack configuration
