@@ -504,6 +504,7 @@ def compare_hashes(m):
 
 
 def write_hashes(m):
+    from metapack.exc import MetatabFileNotFound
     pm = last_build_marker_path(m)
 
     hashes = {}
@@ -511,16 +512,19 @@ def write_hashes(m):
     if pm.exists():
         hashes['last_package'] = pm.read_text()
 
-        p = MetapackDoc(hashes['last_package'])
+        try:
+            p = MetapackDoc(hashes['last_package'])
+            hashes['last_hashes'] = {}
+            for r in p.resources():
+                try:
+                    hashes['last_hashes'][r.name] = r.raw_row_generator.hash
+                except AttributeError as e:
+                    warn(f"Failed to generate hash for {r.name}, rrg={type(r)}: {type(e)} {e}")
+                except Exception as e:
+                    warn(f"Failed to generate hash for {r.name}, rrg={type(r)}: {type(e)} {e}")
 
-        hashes['last_hashes'] = {}
-        for r in p.resources():
-            try:
-                hashes['last_hashes'][r.name] = r.raw_row_generator.hash
-            except AttributeError:
-                raise
-            except Exception as e:
-                warn(f"Failed to generate hash for {r.name}, rrg={type(r)}: {type(e)} {e}")
+        except MetatabFileNotFound:
+            pass
 
     tm = trial_build_marker_path(m)
 

@@ -26,18 +26,35 @@ def signal_handler(sig, frame):
 signal.signal(signal.SIGINT, signal_handler)
 
 
-def foreach_metapack_subdir(ordered_dirs=[]):
+def _build_order(c, ignore=False, update=False):
+    """Return the order in which directories should be traversed
+
+    :param ignore: Ignore the build order configuration
+    :param update: If using the build order configuration, add excluded directories to the end
+    """
+
+    fs_bo = [d.parent.resolve().name for d in Path('.').glob('*/metadata.csv')]
+
+    if c.metapack.build_order is None or ignore is not False:
+        return [Path('.').joinpath(d) for d in fs_bo]
+    else:
+
+        bo = c.metapack.build_order
+
+        if update:
+            bo += list(set(fs_bo) - set(bo))
+
+        return [Path('.').joinpath(d) for d in bo]
+
+
+def foreach_metapack_subdir(c):
     """ For each iteration of the loop, change the working directory into
     a package subdirectory
     :param ordered_dirs: Directories to process first, in order.
     :return:
     """
-    dirs = [d.parent for d in sorted(Path('.').glob('*/metadata.csv'))
-            if str(d.parent) not in ordered_dirs]
 
-    dirs = [Path(d) for d in ordered_dirs] + sorted(list(dirs))
-
-    for d in dirs:
+    for d in _build_order(c):
         d = d.resolve()
         print("⏩ ", d)
 
@@ -50,42 +67,60 @@ def foreach_metapack_subdir(ordered_dirs=[]):
         os.chdir(curdir)
 
 
-def ns_foreach_task_subdir():
+def ns_foreach_task_subdir(c):
     """Return the invoke Collection ( ns ) for each subdir that has a tasks.py
     and a metadata.csv file"""
-    for d in Path('.').glob('*/metadata.csv'):
+    from slugify import slugify
+    from metapack_build.tasks.package import make_ns
+
+    for d in _build_order(c):
         print("⏩ ", d)
-        d = d.parent.resolve()
         incl_path = d.joinpath('tasks.py')
 
-        spec = importlib.util.spec_from_file_location("tasks.sp", incl_path)
+        module_name = f'tasks.{slugify(d.name)}'
+
+        make_ns()  # Reset the package namespace
+
+        spec = importlib.util.spec_from_file_location(module_name, incl_path)
         sp_tasks = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(sp_tasks)
 
         curdir = os.getcwd()
 
         os.chdir(d)
+
         try:
             yield sp_tasks.ns
         except AttributeError as e:
-            if "tasks.sp" not in str(e):
+            if module_name not in str(e):
                 raise
         finally:
             os.chdir(curdir)
 
 
+@task(optional=['force'])
+def debug(c, force=None):
+    """Build a filesystem package."""
+    for sp_ns in ns_foreach_task_subdir(c):
+        print('!!!', sp_ns.tasks.build.__module__)
+        print('   ', sp_ns.tasks.__module__)
+        print('   ', sp_ns.__module__)
+
+
 @task(default=True, optional=['force'])
 def build(c, force=None):
     """Build a filesystem package."""
-    for sp_ns in ns_foreach_task_subdir():
+    for sp_ns in ns_foreach_task_subdir(c):
         print("-- running build in ", os.getcwd())
-        sp_ns.tasks.build(c, force)
+
+        # sp_ns.tasks.build(c, force)
+        c.run('invoke build')
 
 
 @task
 def publish(c, s3_bucket=None, wp_site=None, groups=[], tags=[]):
     "Publish to s3 and wordpress, if the proper bucket and site variables are defined"
-    for sp_ns in ns_foreach_task_subdir():
+    for sp_ns in ns_foreach_task_subdir(c):
         try:
             sp_ns.tasks.publish(c, s3_bucket=s3_bucket, wp_site=wp_site,
                                 groups=groups, tags=tags)
@@ -97,7 +132,7 @@ def publish(c, s3_bucket=None, wp_site=None, groups=[], tags=[]):
 def make(c, force=None, s3_bucket=None, wp_site=None, groups=[], tags=[]):
     """Build, write to S3, and publish to wordpress, but only if necessary"""
 
-    for sp_ns in ns_foreach_task_subdir():
+    for sp_ns in ns_foreach_task_subdir(c):
         try:
             sp_ns.tasks.make(c, force=force, s3_bucket=s3_bucket, wp_site=wp_site,
                              groups=groups, tags=tags)
@@ -108,7 +143,7 @@ def make(c, force=None, s3_bucket=None, wp_site=None, groups=[], tags=[]):
 @task
 def install(c, dest):
     """Copy most recently build version of packages to a destination directory"""
-    for sp_ns in ns_foreach_task_subdir():
+    for sp_ns in ns_foreach_task_subdir(c):
         try:
             sp_ns.tasks.install(c, dest)
         except UnexpectedExit:
@@ -119,7 +154,7 @@ def install(c, dest):
 def clean(c):
     """Build, write to S3, and publish to wordpress, but only if necessary"""
 
-    for sp_ns in ns_foreach_task_subdir():
+    for sp_ns in ns_foreach_task_subdir(c):
         try:
             sp_ns.tasks.clean(c)
         except UnexpectedExit:
@@ -144,7 +179,7 @@ def pip(c):
 @task
 def config(c):
     """Print invoke's configuration by running the config tasks in each subdirectory """
-    for sp_ns in ns_foreach_task_subdir():
+    for sp_ns in ns_foreach_task_subdir(c):
         try:
             sp_ns.tasks.config(c)
         except UnexpectedExit:
@@ -154,7 +189,7 @@ def config(c):
 @task
 def tox(c):
     """Run tox in each of the subdirectories """
-    for sp_ns in foreach_metapack_subdir():
+    for sp_ns in foreach_metapack_subdir(c):
         try:
             c.run('tox')
         except UnexpectedExit:
@@ -176,7 +211,7 @@ def git_status(c):
 @task
 def git_commit(c, message):
     """Run git commit -a  on all submodules"""
-    c.run(f"git submodule foreach 'git commit -a -m \"{message}\"'")
+    c.run(f"git submodule foreach  'git commit -a -m \"{message}\" || echo '")
 
 
 @task
@@ -193,9 +228,26 @@ def git_fix_detached(c, message):
     c.run('git submodule foreach git pull origin master')
 
 
-ns = Collection(build, publish, make, clean, config, pip,
+@task(optional=['ignore'])
+def show_build_order(c, ignore=False, update=False):
+    """  Show the build order, in a form that can be used to specify the build order
+
+    :param ignore: Ignore the existing build order config
+    :param update: If using the build order configuration, include any omitted packages at the end of the output
+
+    """
+
+    print("    # Add this to invoke.yaml")
+    print("    build_order:")
+    for p in _build_order(c, ignore=ignore, update=update):
+        print(f"        - {p}")
+
+    print("")
+
+
+ns = Collection(debug, build, publish, make, clean, config, pip,
                 git_update, git_commit, git_status, git_push,
-                tox, install)
+                tox, install, show_build_order)
 
 metapack_config = (get_config() or {}).get('invoke', {})
 
@@ -203,6 +255,7 @@ ns.configure(
     {
         'metapack':
             {
+                'build_order': None,
                 's3_bucket': metapack_config.get('s3_bucket'),
                 'wp_site': metapack_config.get('wp_site'),
                 'groups': None,

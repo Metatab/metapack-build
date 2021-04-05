@@ -20,7 +20,7 @@ def build(c, force=None):
 
     force_flag = '-F' if force else ''
 
-    c.run(f"mp build -r {force_flag}", pty=True)
+    c.run(f"mp  build -r {force_flag}", pty=True)
 
 
 @task
@@ -164,9 +164,6 @@ def dummy(c):
     pass
 
 
-ns = Collection(build, s3, publish, make, config, clean, pip, install)
-
-
 # Pull in metapack configuration
 
 def merge_config(key):
@@ -192,14 +189,26 @@ def merge_config(key):
         return None
 
 
-ns.configure(
-    {
-        'metapack':
-            {
-                's3_bucket': merge_config('s3_bucket'),
-                'wp_site': merge_config('wp_site'),
-                'groups': merge_config('groups'),
-                'tags': merge_config('tags')
-            }
-    }
-)
+ns = None
+
+
+# This is impl,ented as a function with a global ns so it can be re-set in
+# loops in .collection, so, for instance, build() tasks set in one directory
+# don't persist into another.
+def make_ns():
+    global ns
+    ns = Collection(build, s3, publish, make, config, clean, pip, install)
+    ns.configure(
+        {
+            'metapack':
+                {
+                    's3_bucket': merge_config('s3_bucket'),
+                    'wp_site': merge_config('wp_site'),
+                    'groups': merge_config('groups'),
+                    'tags': merge_config('tags')
+                }
+        }
+    )
+
+
+make_ns()
