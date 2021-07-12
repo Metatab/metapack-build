@@ -8,6 +8,7 @@ from os.path import getsize, join
 
 import boto3
 import unicodecsv as csv
+
 from metapack.util import write_csv
 from metatab import DEFAULT_METATAB_FILE
 from rowgenerators import parse_app_url
@@ -336,9 +337,10 @@ class S3Bucket(object):
         ct = mimetypes.guess_type(key)[0]
 
         try:
+
             self._bucket.put_object(Key=key,
                                     Body=body,
-                                    ACL=acl,
+                                    # ACL=acl, # Changes at AWS broke this
                                     ContentType=ct if ct else 'binary/octet-stream')
         except Exception as e:
             self.last_reason = ('error', "Failed to write '{}' to '{}': {}".format(key, self.bucket_name, e))
