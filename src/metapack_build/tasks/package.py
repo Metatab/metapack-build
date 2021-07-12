@@ -192,7 +192,7 @@ def merge_config(key):
 ns = None
 
 
-# This is impl,ented as a function with a global ns so it can be re-set in
+# This is implemented as a function with a global ns so it can be re-set in
 # loops in .collection, so, for instance, build() tasks set in one directory
 # don't persist into another.
 def make_ns():

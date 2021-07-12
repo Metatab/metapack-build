@@ -4,13 +4,13 @@
 """ """
 
 from collections import namedtuple
-from genericpath import exists
 from hashlib import sha1
 from itertools import islice
 from os import walk
 from os.path import abspath, basename, dirname, isdir, join, splitext
 from time import time
 
+from genericpath import exists
 from tableintuit import RowIntuiter
 
 from metapack.exc import PackageError
@@ -77,8 +77,7 @@ class PackageBuilder(object):
         """Iterate over data file *in the original document*. Don't alter these! """
         for r in self._source_doc['Resources'].find(['root.datafile',
                                                      'root.suplimentarydata',
-                                                     'root.datadictionary',
-                                                     'root.sql']):
+                                                     'root.datadictionary']):
             yield r
 
     def datafile(self, ref):
@@ -335,54 +334,35 @@ class PackageBuilder(object):
 
         for r in self.datafiles:
 
-            # Special handling for SQL is probably a really bad idea. It should be handled as
-            # a Rowgenerator.
-            if r.term_is('root.sql'):
+            if not r.url:
+                self.warn("No value for URL for {} ".format(r.term))
+                continue
 
-                if not r.value:
-                    self.warn("No value for SQL URL for {} ".format(r.term))
-                    continue
+            try:
+                if self._resource.exists(r):
+                    self.prt("Resource '{}' exists, skipping".format(r.name))
+                continue
+            except AttributeError:
+                pass
 
-                try:
-                    self._load_resource(r, abs_path)
-                except Exception as e:
-                    if r.props.get('ignoreerrors'):
-                        self.warn(f"Ignoring errors for {r.name}: {str(e)}")
-                        pass
-                    else:
-                        raise e
+            self.prt("Reading resource {} from {} ".format(r.name, r.resolved_url))
 
-            else:
+            try:
+                if not r.headers:
+                    raise PackageError("Resource {} does not have header. Have schemas been generated?"
+                                       .format(r.name))
+            except AttributeError:
+                raise PackageError("Resource '{}' of type {} does not have a headers property"
+                                   .format(r.url, type(r)))
 
-                if not r.url:
-                    self.warn("No value for URL for {} ".format(r.term))
-                    continue
-
-                try:
-                    if self._resource.exists(r):
-                        self.prt("Resource '{}' exists, skipping".format(r.name))
-                    continue
-                except AttributeError:
+            try:
+                self._load_resource(r, abs_path)
+            except Exception as e:
+                if r.props.get('ignoreerrors'):
+                    self.warn(f"Ignoring errors for {r.name}: {str(e)}")
                     pass
-
-                self.prt("Reading resource {} from {} ".format(r.name, r.resolved_url))
-
-                try:
-                    if not r.headers:
-                        raise PackageError("Resource {} does not have header. Have schemas been generated?"
-                                           .format(r.name))
-                except AttributeError:
-                    raise PackageError("Resource '{}' of type {} does not have a headers property"
-                                       .format(r.url, type(r)))
-
-                try:
-                    self._load_resource(r, abs_path)
-                except Exception as e:
-                    if r.props.get('ignoreerrors'):
-                        self.warn(f"Ignoring errors for {r.name}: {str(e)}")
-                        pass
-                    else:
-                        raise e
+                else:
+                    raise e
 
     def _load_resource(self, source_r, abs_path):
         raise NotImplementedError()

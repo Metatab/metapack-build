@@ -77,6 +77,9 @@ def ns_foreach_task_subdir(c):
         print("⏩ ", d)
         incl_path = d.joinpath('tasks.py')
 
+        if not incl_path.exists():
+            continue
+
         module_name = f'tasks.{slugify(d.name)}'
 
         make_ns()  # Reset the package namespace
