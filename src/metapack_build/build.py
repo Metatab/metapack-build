@@ -196,3 +196,44 @@ def find_csv_packages(m, downloader):
         return open_package(pkgs[0][1], downloader=downloader)
 
     return None
+
+
+def find_fs_packages_from_source(source_dir, doc, downloader):
+    """Locate the built Filesystem package, based on the name and root of a source package """
+    from metapack_build.package import FileSystemPackageBuilder
+
+    name = doc.get_value('Root.Name')
+
+    package_path, cache_path = FileSystemPackageBuilder.make_package_path(source_dir, name)
+
+    if package_path.exists():
+        r = open_package(package_path, downloader=downloader)
+        return r
+
+    return None
+
+
+def find_fs_package_from_dir(source):
+    """Find the """
+
+    from metapack.exc import PackageError
+    from metapack import open_package
+    from rowgenerators import parse_app_url
+    from metapack.cli.index import walk_packages
+
+    u = parse_app_url(source)
+
+    pkg = open_package(u)
+
+    if pkg.package_format != 'source':
+        return pkg
+
+    root_dir = u.fspath
+
+    packages = [e for e in walk_packages(None, u)]
+
+    for pkg in reversed(sorted(packages, key=lambda e: e.name)):
+        if pkg.package_format == 'fs':
+            return pkg
+    else:
+        raise PackageError("Did not find package below directory ", root_dir)

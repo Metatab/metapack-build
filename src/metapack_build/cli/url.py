@@ -7,12 +7,13 @@ CLI program for managing packages
 
 import re
 
+from tableintuit import RowIntuitError
+
 from metapack import Downloader, MetapackDoc
 from metapack.cli.core import (MetapackCliMemo, err, extract_path_name, prt,
                                update_name, warn, write_doc)
 from rowgenerators import parse_app_url
 from rowgenerators.exceptions import RowGeneratorError, SourceError
-from tableintuit import RowIntuitError
 
 downloader = Downloader.get_instance()
 
@@ -115,7 +116,7 @@ def run_url_scrape(args):
     doc = m.doc
     url = m.args.url
 
-    doc['resources'].new_term('DownloadPage', url)
+    doc['Documentation'].new_term('DownloadPage', url)
 
     d = scrape_urls_from_web_page(url)
 
@@ -128,18 +129,18 @@ def run_url_scrape(args):
     if not args.no_resources:
         for k, v in d['sources'].items():
             u = parse_app_url(v['url'])
-            t = doc['Resources'].new_term('DataFile', v['url'],
-                                          name=u.fspath.stem,
-                                          description=v.get('description'))
+            t = doc['References'].new_term('Reference', v['url'],
+                                           name=u.fspath.stem,
+                                           description=v.get('description'))
             new_resources += 1
             if args.verbose:
                 prt(t, t.props)
 
     if not args.no_docs:
         for k, v in d['external_documentation'].items():
-            term_name = classify_url(v['url'])
+
             u = parse_app_url(v['url'])
-            t = doc['Documentation'].new_term(term_name, v['url'],
+            t = doc['Documentation'].new_term('Documentation', v['url'],
                                               name=u.fspath.stem,
                                               description=v.get('description'))
             new_documentation += 1
