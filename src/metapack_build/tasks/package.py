@@ -49,7 +49,7 @@ def s3(c, s3_bucket=None):
 
 
 @task
-def publish(c, s3_bucket=None, wp_site=None, groups=[], tags=[]):
+def publish(c, s3_bucket=None, wp_site=None, groups=[], tags=[], storage=None, force=None):
     """ Publish to s3 and wordpress, if the proper bucket and site variables are defined
 
     If the package should not be published, add a 'Redistribution'  Term to the root level
@@ -61,8 +61,13 @@ def publish(c, s3_bucket=None, wp_site=None, groups=[], tags=[]):
     """
     wp_site = c.metapack.wp_site or wp_site
 
-    groups = c.metapack.groups or groups
-    tags = c.metapack.tags or tags
+    _groups = set(c.metapack.groups) if c.metapack.groups else set()
+    groups = _groups | set(groups)
+
+    _tags = set(c.metapack.tags) if c.metapack.tags else set()
+    tags = _tags | set(tags)
+
+    storage = storage or c.metapack.storage
 
     group_flags = ' '.join([f"-g{g}" for g in groups])
     tag_flags = ' '.join([f"-t{t}" for t in tags])
@@ -72,12 +77,19 @@ def publish(c, s3_bucket=None, wp_site=None, groups=[], tags=[]):
     redist = pkg.find_first_value('Root.Redistribution')
     name = pkg.name
 
-    s3(c, s3_bucket=s3_bucket)
+    up_args = ""
+
+    if storage == 's3' or storage is None:
+        s3(c, s3_bucket=s3_bucket)
+    elif storage == 'wp':
+        up_args = "-U"
+    else:
+        raise ValueError(f"Unknown storage type {storage}")
 
     if redist in ('private', 'hidden'):
         print(f"⚠️  Package {name} is {redist}; won't publish to wordpress")
     elif wp_site:
-        c.run(f"mp wp -s {wp_site} {group_flags} {tag_flags} -p", pty=True)
+        c.run(f"mp wp {up_args} -s {wp_site} {group_flags} {tag_flags} -p", pty=True)
 
     if redist not in ('private', 'hidden') and not s3_bucket and not wp_site:
         print("⚠️  Neither s3 bucket nor wp site config specified; nothing to do")
@@ -203,6 +215,7 @@ def make_ns():
             'metapack':
                 {
                     's3_bucket': merge_config('s3_bucket'),
+                    'storage': merge_config('storage'),
                     'wp_site': merge_config('wp_site'),
                     'groups': merge_config('groups'),
                     'tags': merge_config('tags')
