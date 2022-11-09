@@ -230,11 +230,10 @@ class S3Bucket(object):
 
         key = join(self.prefix, *paths).strip('/')
 
-        url = self._client.meta.endpoint_url.replace('https', 'http')
-
         if self.dns_bucket:
-            return 'http://{}/{}'.format(self.bucket_name, key)
+            return 'https://{}/{}'.format(self.bucket_name, key)
         else:
+            url = self._client.meta.endpoint_url
             return '{}/{}/{}'.format(url, self.bucket_name, key)
 
     def signed_access_url(self, *paths):

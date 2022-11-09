@@ -110,7 +110,7 @@ def next_update_time(m):
     else:
         return False
 
-    return (last_mod + uf).date()
+    return (last_mod + uf)
 
 
 def should_build(m):
@@ -118,37 +118,33 @@ def should_build(m):
 
     p = m.filesystem_package
 
-    now = datetime.now().date()
+    now = datetime.utcnow()
 
     update_time = next_update_time(m)
 
-    if m.doc['Root'].find_first_value('Root.UpdateFrequency'):
-        has_uf = True
-    else:
-        has_uf = False
-
+    uf = m.doc['Root'].find_first_value('Root.UpdateFrequency')
 
     if force:
         reason = 'Forcing build'
-        should_build = True
+        _should_build = True
     elif p.is_older_than_metadata():
         reason = 'Metadata is younger than package'
-        should_build = True
+        _should_build = True
     elif not p.exists():
         reason = "Package doesn't exist"
-        should_build = True
+        _should_build = True
     elif update_time is not False and update_time <= now:
-        reason = 'Last build past update frequency'
-        should_build = True
+        reason = f'Last build past update frequency, time={update_time}, now={now}'
+        _should_build = True
     else:
-        if has_uf and update_time is not False:
-            reason = f'UpdateFrequency specifies next build at {update_time}'
+        if (uf is not None) and update_time is not False:
+            reason = f'UpdateFrequency ({uf}) specifies next build at {update_time}, now={now}'
         else:
             reason = 'Package source has not changed since last build'
 
-        should_build = False
+        _should_build = False
 
-    return should_build, reason
+    return _should_build, reason
 
 
 def make_cmd(args):

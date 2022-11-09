@@ -121,6 +121,7 @@ def run_s3(args):
             prt("Not creating CSV package; no FS package was uploaded")
 
         add_to_index(open_package(access_url))
+
     else:
         access_url = None
 
@@ -227,9 +228,7 @@ def upload_packages(m):
 
                 url = fs_p.save()
 
-                prt("Packaged saved to: {}".format(url))
-
-                # fs_url = MetapackUrl(url, downloader=purl.metadata_url.downloader)
+                prt("Package saved to: {}".format(url))
 
             except NoCredentialsError:
                 print(getenv('AWS_SECRET_ACCESS_KEY'))
