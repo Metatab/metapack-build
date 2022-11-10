@@ -67,7 +67,7 @@ def publish(c, s3_bucket=None, wp_site=None, groups=[], tags=[], storage=None, f
     _tags = set(c.metapack.tags) if c.metapack.tags else set()
     tags = _tags | set(tags)
 
-    storage = storage or c.metapack.storage
+    storage = storage or c.metapack.get('storage')
 
     group_flags = ' '.join([f"-g{g}" for g in groups])
     tag_flags = ' '.join([f"-t{t}" for t in tags])
@@ -178,7 +178,7 @@ def dummy(c):
 
 # Pull in metapack configuration
 
-def merge_config(key):
+def merge_config(key, default=None):
     from pathlib import Path
     import yaml
     metapack_config = get_config().get('invoke', {})
@@ -198,7 +198,7 @@ def merge_config(key):
         return metapack_config.get(key)
 
     else:
-        return None
+        return default
 
 
 ns = None
@@ -215,7 +215,7 @@ def make_ns():
             'metapack':
                 {
                     's3_bucket': merge_config('s3_bucket'),
-                    'storage': merge_config('storage'),
+                    'storage': merge_config('storage', 's3'),
                     'wp_site': merge_config('wp_site'),
                     'groups': merge_config('groups'),
                     'tags': merge_config('tags')

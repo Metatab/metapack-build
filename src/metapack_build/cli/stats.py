@@ -2,9 +2,6 @@
 # Revised BSD License, included in this distribution as LICENSE
 
 """
-CLI program for storing pacakges in CKAN
-
-The program uses the Root.Distributions in the source package to locate packages to link into a CKAN record.
 
 """
 

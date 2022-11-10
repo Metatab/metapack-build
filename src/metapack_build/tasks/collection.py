@@ -248,9 +248,23 @@ def show_build_order(c, ignore=False, update=False):
     print("")
 
 
+@task
+def clone(c):
+    """ Clone all of the packages specified in the ``packages`` list in the
+    metatab.yaml configuration file
+
+    """
+
+    for p in get_config().get('packages', []):
+        try:
+            c.run(f"git clone {p}")
+        except UnexpectedExit as e:
+            pass
+
+
 ns = Collection(debug, build, publish, make, clean, config, pip,
                 git_update, git_commit, git_status, git_push,
-                tox, install, show_build_order)
+                tox, install, show_build_order, clone, git_fix_detached)
 
 metapack_config = (get_config() or {}).get('invoke', {})
 
