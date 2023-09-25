@@ -121,12 +121,12 @@ def build(c, force=None):
 
 
 @task
-def publish(c, s3_bucket=None, wp_site=None, groups=[], tags=[]):
+def publish(c, s3_bucket=None, s3_profile=None, wp_site=None, groups=[], tags=[]):
     "Publish to s3 and wordpress, if the proper bucket and site variables are defined"
     for sp_ns in ns_foreach_task_subdir(c):
         try:
-            sp_ns.tasks.publish(c, s3_bucket=s3_bucket, wp_site=wp_site,
-                                groups=groups, tags=tags)
+            sp_ns.tasks.publish(c, s3_bucket=s3_bucket, s3_profile=s3_profile,
+                                wp_site=wp_site,groups=groups, tags=tags)
         except UnexpectedExit:
             pass
 
@@ -274,6 +274,7 @@ ns.configure(
             {
                 'build_order': None,
                 's3_bucket': metapack_config.get('s3_bucket'),
+                's3_profile': metapack_config.get('s3_profile'),
                 'wp_site': metapack_config.get('wp_site'),
                 'groups': None,
                 'tags': None

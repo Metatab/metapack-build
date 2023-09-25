@@ -256,9 +256,9 @@ def show_credentials(profile):
     session = boto3.Session(profile_name=profile)
 
     if profile:
-        cred_line = " 'eval $(metasync -C -p {} )'".format(profile)
+        cred_line = " 'eval $(mp s3 -C -p {} )'".format(profile)
     else:
-        cred_line = " 'eval $(metasync -C)'"
+        cred_line = " 'eval $(mp s3 -C)'"
 
     prt("export AWS_ACCESS_KEY_ID={} ".format(session.get_credentials().access_key))
     prt("export AWS_SECRET_ACCESS_KEY={}".format(session.get_credentials().secret_key))

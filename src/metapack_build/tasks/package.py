@@ -24,7 +24,7 @@ def build(c, force=None):
 
 
 @task
-def s3(c, s3_bucket=None):
+def s3(c, s3_bucket=None, s3_profile=None):
     """ Publish to s3, if the proper bucket and site variables are defined
 
     If the package should not be published, add a 'Redistribution'  Term to the root level
@@ -36,20 +36,23 @@ def s3(c, s3_bucket=None):
     """
 
     s3_bucket = c.metapack.s3_bucket or s3_bucket
+    s3_profile = c.metapack.s3_profile or s3_profile
 
     pkg = open_package('./metadata.csv')
 
     redist = pkg.find_first_value('Root.Redistribution')
     name = pkg.name
 
+    prof_str = f"--profile {s3_profile}" if s3_profile else ''
+
     if redist == 'private':
         print(f"⚠️  Package {name} is private; won't upload to s3")
     elif s3_bucket:
-        c.run(f"mp s3 -s {s3_bucket}", pty=True)
+        c.run(f"mp s3 {prof_str} -s {s3_bucket}", pty=True)
 
 
 @task
-def publish(c, s3_bucket=None, wp_site=None, groups=[], tags=[], storage=None, force=None):
+def publish(c, s3_bucket=None, s3_profile=None, wp_site=None, groups=[], tags=[], storage=None, force=None):
     """ Publish to s3 and wordpress, if the proper bucket and site variables are defined
 
     If the package should not be published, add a 'Redistribution'  Term to the root level
@@ -80,7 +83,7 @@ def publish(c, s3_bucket=None, wp_site=None, groups=[], tags=[], storage=None, f
     up_args = ""
 
     if storage == 's3' or storage is None:
-        s3(c, s3_bucket=s3_bucket)
+        s3(c, s3_bucket=s3_bucket, s3_profile=s3_profile)
     elif storage == 'wp':
         up_args = "-U"
     else:
@@ -93,7 +96,6 @@ def publish(c, s3_bucket=None, wp_site=None, groups=[], tags=[], storage=None, f
 
     if redist not in ('private', 'hidden') and not s3_bucket and not wp_site:
         print("⚠️  Neither s3 bucket nor wp site config specified; nothing to do")
-
 
 @task(optional=['force'])
 def make(c, force=None, s3_bucket=None, wp_site=None, groups=[], tags=[]):
@@ -166,6 +168,7 @@ def config(c):
     Tags:           {c.metapack.tags}
     Wordpress Site: {c.metapack.wp_site}
     S3 Bucket:      {c.metapack.s3_bucket}
+    S3 Profile:     {c.metapack.s3_profile}
     """))
 
 
@@ -215,6 +218,7 @@ def make_ns():
             'metapack':
                 {
                     's3_bucket': merge_config('s3_bucket'),
+                    's3_profile': merge_config('s3_profile'),
                     'storage': merge_config('storage', 's3'),
                     'wp_site': merge_config('wp_site'),
                     'groups': merge_config('groups'),

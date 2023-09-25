@@ -159,17 +159,17 @@ def _process_normal_resource(doc, r, force, skip_start=5000, allow_codes=True):
         if alt_name:
             kwargs['AltName'] = alt_name
 
-        datatype = type_map.get(c['resolved_type'], c['resolved_type'])
+        datatype = type_map.get(c['rtype'], c['rtype'])
 
         # If the field has codes, it is probably an integer, with a few
         # strings
-        if c['has_codes'] and not allow_codes:
+        if c['codes'] and not allow_codes:
             datatype = 'text' if c['unicode'] else 'string'
 
         schema_term.new_child('Column', c['header'],
                               datatype=datatype,
                               # description = get_col_value(c['header'].lower(),'description'),
-                              has_codes='T' if c['has_codes'] else '',
+                              has_codes='T' if c['codes'] else '',
                               **kwargs)
 
     update_resource_properties(r, orig_columns=orig_columns, force=force)

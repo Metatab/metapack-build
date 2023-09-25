@@ -462,15 +462,25 @@ class PackageBuilder(object):
     def _load_documentation(self, term, contents, file_name):
         raise NotImplementedError()
 
-    excludes = ['__pycache__', '-errors.ipynb', '-executed.ipynb', '-checkpoint.ipynb']
+    excludes = ['__pycache__', '-errors.ipynb', '-executed.ipynb', '-checkpoint.ipynb',
+                '.ipynb_checkpoints', '.DS_Store', '.git', '.gitignore', '.gitattributes']
 
     def _load_files(self):
         """Load other files"""
 
         def copy_dir(path):
-            for (dr, _, files) in walk(path):
-                for fn in files:
+            if 'cache' in path:
+                raise Exception("Can't copy cache directory (A): ", path)
 
+            for (dr, _, files) in walk(path):
+
+                dir_parts = dr.replace(path, '').split('/')
+
+                if any( e[0] == '_' for e in dir_parts if len(e) > 0 ):
+
+                    continue
+
+                for fn in files:
                     if any([e in fn for e in self.excludes]):
                         continue
 
