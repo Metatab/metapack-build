@@ -71,6 +71,11 @@ class MetapackCliMemo(object):
 
         self.bucket = S3Bucket(self.s3_url, acl=self.acl, profile=self.args.profile) if self.s3_url else None
 
+        # Also set the profile globally, so that the boto3 library will use it
+        if self.args.profile:
+            import os
+            os.environ['AWS_PROFILE'] = self.args.profile
+
 
 def s3(subparsers):
     parser = subparsers.add_parser(
